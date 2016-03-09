@@ -1,5 +1,10 @@
+import gevent
+from gevent import monkey
+gevent.monkey.patch_all()  # nopep8
+
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
+from gevent.pool import Pool
 from Queue import PriorityQueue
 from requests import Session
 from _version import __version__ as VERSION
@@ -11,7 +16,8 @@ import time
 
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
-REQUESTS_PER_SECOND = 50
+REQUESTS_PER_SECOND_PER_WORKER = 10
+SIMULTANEUOUS_WORKERS = 10
 
 
 logger = logging.getLogger("trawler")
@@ -21,12 +27,17 @@ def getEVE():
     return pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
 
 
+def getRegions():
+    return [region() for region in getEVE()().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
+
+
 class Trawler(object):
     def __init__(self):
-        Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
+        Session.get = RateLimited(REQUESTS_PER_SECOND_PER_WORKER)(Session.get)
         self._eve = getEVE()
         self._listeners = []
         self._itemQueue = PriorityQueue()
+        self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
 
     def addListener(self, listener):
         self._listeners.append(listener)
@@ -44,17 +55,20 @@ class Trawler(object):
 
     def trawlMarket(self):
         self.populateItemQueue()
-        regions = [region() for region in self._eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
-        while True:
-            (_, item) = self._itemQueue.get()
+
+        def processItem(item):
             logger.info("Trawling for item {0}".format(item.name))
-            for region in regions:
+            for region in getRegions():
                 sellOrders = region.marketSellOrders(type=item.href).items
                 buyOrders = region.marketBuyOrders(type=item.href).items
                 orders = sellOrders + buyOrders
                 logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
                 self._notifyListeners(region.id, item.id, orders)
             self._itemQueue.put((time.time(), item))
+
+        while True:
+            (_, item) = self._itemQueue.get()
+            self._pool.spawn(processItem, item)
 
 
 def main():

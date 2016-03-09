@@ -1,5 +1,11 @@
+# This should already have been done in trawler but just in case!
+import gevent
+from gevent import monkey
+gevent.monkey.patch_all()  # nopep8
+
 from _version import __version__ as VERSION
 from contrib import timestampString
+from gevent.pool import Pool
 from Queue import Queue
 from threading import Thread
 from requests.sessions import Session
@@ -75,14 +81,22 @@ class EMDRUploader(Thread):
         self._session.headers.update({
             "User-Agent": "CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION)
         })
+        self._pool = Pool(size=10)
 
     def notify(self, regionID, typeID, orders):
         self._queue.put((timestampString(), regionID, typeID, orders))
+        if self._queue.qsize() > 100:
+            logger.error("EMDR submit queue is about {0} items long!".format(self._queue.qsize()))
+        elif self._queue.qsize() > 10:
+            logger.warn("EMDR submit queue is about {0} items long!".format(self._queue.qsize()))
 
     def run(self):
-        while True:
-            (generationTime, regionID, typeID, orders) = self._queue.get()
+        def submit(generationTime, regionID, typeID, orders):
             uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, typeID, orders))
             res = self._session.post("http://upload.eve-emdr.com/upload/", data=uudif)
             if res.status_code != 200:
                 logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
+
+        while True:
+            (generationTime, regionID, typeID, orders) = self._queue.get()
+            self._pool.spawn(submit, generationTime, regionID, typeID, orders)
