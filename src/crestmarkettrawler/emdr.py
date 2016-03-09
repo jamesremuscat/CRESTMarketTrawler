@@ -1,3 +1,6 @@
+from _version import __version__ as VERSION
+from datetime import datetime
+
 COLUMNS = [
     ("price", lambda o: o.price),
     ("volRemaining", lambda o: o.volume),
@@ -31,8 +34,29 @@ def EMDROrderAdapter(order):
     return [adapt(order) for adapt in COL_FUNCTIONS]
 
 
+def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
+    rows = [EMDROrderAdapter(order) for order in orders]
+    return {
+        "resultType": "orders",
+        "version": "0.1",
+        "uploadKeys": [],
+        "generator": {
+            "name": "CRESTMarketTrawler",
+            "version": VERSION
+        },
+        "currentTime": datetime.utcnow().isoformat() + "+00:00",  # Be explicit because some clients are lax!
+        "columns": COL_NAMES,
+        "rowsets": [
+            {
+                "generatedAt": generationTime.isoformat() + "+00:00",
+                "regionID": regionID,
+                "typeID": typeID,
+                "rows": rows
+            }
+        ]
+    }
+
+
 class EMDRUploader(object):
-    def notify(self, regionID, orders):
-        print "Received orders!"
-        for order in orders:
-            print EMDROrderAdapter(order)
+    def notify(self, generationTime, regionID, typeID, orders):
+        print EMDROrdersAdapter(generationTime, regionID, typeID, orders)
