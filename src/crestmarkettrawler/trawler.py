@@ -52,4 +52,5 @@ if __name__ == '__main__':
     t = Trawler()
     u = EMDRUploader()
     t.addListener(u)
+    u.start()
     t.trawlMarket()

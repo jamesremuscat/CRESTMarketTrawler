@@ -1,5 +1,7 @@
 from _version import __version__ as VERSION
 from contrib import timestampString
+from Queue import Queue
+from threading import Thread
 
 COLUMNS = [
     ("price", lambda o: o.price),
@@ -57,6 +59,16 @@ def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
     }
 
 
-class EMDRUploader(object):
+class EMDRUploader(Thread):
+    def __init__(self):
+        Thread.__init__(self)
+        self._queue = Queue()
+        self.setDaemon(True)
+
     def notify(self, regionID, typeID, orders):
-        print EMDROrdersAdapter(timestampString(), regionID, typeID, orders)
+        self._queue.put((timestampString(), regionID, typeID, orders))
+
+    def run(self):
+        while True:
+            (generationTime, regionID, typeID, orders) = self._queue.get()
+            print EMDROrdersAdapter(generationTime, regionID, typeID, orders)
