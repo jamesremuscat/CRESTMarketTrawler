@@ -7,10 +7,11 @@ import pycrest
 
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
+REQUESTS_PER_SECOND = 50
 
 
 def trawlMarket():
-    Session.get = RateLimited(20)(Session.get)
+    Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
     eve = pycrest.EVE(cache_dir='cache/')
     items = [34, 35, 36]
     regions = [region() for region in eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
