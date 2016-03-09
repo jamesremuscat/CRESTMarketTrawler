@@ -81,7 +81,7 @@ class EMDRUploader(Thread):
         self._session.headers.update({
             "User-Agent": "CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION)
         })
-        self._pool = Pool(size=20)
+        self._pool = Pool(size=10)
 
     def notify(self, regionID, typeID, orders):
         self._queue.put((timestampString(), regionID, typeID, orders))
