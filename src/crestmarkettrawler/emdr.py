@@ -2,6 +2,13 @@ from _version import __version__ as VERSION
 from contrib import timestampString
 from Queue import Queue
 from threading import Thread
+from requests.sessions import Session
+
+import logging
+import simplejson as json
+
+
+logger = logging.getLogger("emdr")
 
 COLUMNS = [
     ("price", lambda o: o.price),
@@ -11,7 +18,7 @@ COLUMNS = [
     ("volEntered", lambda o: o.volumeEntered),
     ("minVolume", lambda o: o.minVolume),
     ("bid", lambda o: o.buy),
-    ("issueDate", lambda o: o.issued),
+    ("issueDate", lambda o: o.issued + "+00:00"),
     ("duration", lambda o: o.duration),
     ("stationID", lambda o: o.location.id),
     ("solarSystemID", lambda _: None)  # Not available through CREST :(
@@ -64,6 +71,10 @@ class EMDRUploader(Thread):
         Thread.__init__(self)
         self._queue = Queue()
         self.setDaemon(True)
+        self._session = Session()
+        self._session.headers.update({
+            "User-Agent": "CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION)
+        })
 
     def notify(self, regionID, typeID, orders):
         self._queue.put((timestampString(), regionID, typeID, orders))
@@ -71,4 +82,7 @@ class EMDRUploader(Thread):
     def run(self):
         while True:
             (generationTime, regionID, typeID, orders) = self._queue.get()
-            print EMDROrdersAdapter(generationTime, regionID, typeID, orders)
+            uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, typeID, orders))
+            res = self._session.post("http://upload.eve-emdr.com/upload/", data=uudif)
+            if res.status_code != 200:
+                logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
