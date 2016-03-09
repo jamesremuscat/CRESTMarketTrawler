@@ -9,7 +9,7 @@ COLUMNS = [
     ("issueDate", lambda o: o.issued),
     ("duration", lambda o: o.duration),
     ("stationID", lambda o: o.location.id),
-    # ("solarSystemID", lambda _: -1)  # Not available through CREST :(
+    ("solarSystemID", lambda _: None)  # Not available through CREST :(
 ]
 
 
