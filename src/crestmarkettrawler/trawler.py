@@ -1,6 +1,7 @@
 from contrib import RateLimited
 from random import choice
 from requests import Session
+from _version import __version__ as VERSION
 import logging
 import pycrest
 
@@ -13,7 +14,7 @@ REQUESTS_PER_SECOND = 50
 class Trawler(object):
     def __init__(self):
         Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
-        self._eve = pycrest.EVE(cache_dir='cache/')
+        self._eve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
 
     def trawlMarket(self):
         items = [34, 35, 36]
