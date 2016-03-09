@@ -5,22 +5,6 @@ import logging
 import pycrest
 
 
-def getByAttrVal(objlist, attr, val):
-    ''' Searches list of dicts for a dict with dict[attr] == val '''
-    matches = [getattr(obj, attr) == val for obj in objlist]
-    index = matches.index(True)  # find first match, raise ValueError if not found
-    return objlist[index]
-
-
-def getAllItems(page):
-    ''' Fetch data from all pages '''
-    ret = page().items
-    while hasattr(page(), 'next'):
-        page = page().next()
-        ret.extend(page().items)
-    return ret
-
-
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
 
@@ -36,7 +20,8 @@ def trawlMarket():
         for item in items:
             sellOrders = region.marketSellOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item)).items
             buyOrders = region.marketBuyOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item)).items
-            logging.info("Retrieved {0} orders for type {1}".format(len(sellOrders) + len(buyOrders), item))
+            orders = sellOrders + buyOrders
+            logging.info("Retrieved {0} orders for type {1}".format(len(orders), item))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
