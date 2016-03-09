@@ -1,5 +1,5 @@
 from _version import __version__ as VERSION
-from datetime import datetime
+from contrib import timestampString
 
 COLUMNS = [
     ("price", lambda o: o.price),
@@ -44,11 +44,11 @@ def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
             "name": "CRESTMarketTrawler",
             "version": VERSION
         },
-        "currentTime": datetime.utcnow().isoformat() + "+00:00",  # Be explicit because some clients are lax!
+        "currentTime": timestampString(),
         "columns": COL_NAMES,
         "rowsets": [
             {
-                "generatedAt": generationTime.isoformat() + "+00:00",
+                "generatedAt": generationTime,
                 "regionID": regionID,
                 "typeID": typeID,
                 "rows": rows
@@ -58,5 +58,5 @@ def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
 
 
 class EMDRUploader(object):
-    def notify(self, generationTime, regionID, typeID, orders):
-        print EMDROrdersAdapter(generationTime, regionID, typeID, orders)
+    def notify(self, regionID, typeID, orders):
+        print EMDROrdersAdapter(timestampString(), regionID, typeID, orders)

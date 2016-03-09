@@ -1,4 +1,10 @@
+from datetime import datetime
 from time import clock, sleep
+
+
+def timestampString():
+    now = datetime.utcnow().replace(microsecond=0)
+    return now.isoformat() + "+00:00"  # Be explicit because some clients are lax!
 
 
 # http://stackoverflow.com/a/667706/11643

@@ -1,5 +1,4 @@
 from contrib import getAllItems, RateLimited
-from datetime import datetime
 from emdr import EMDRUploader
 from random import choice
 from requests import Session
@@ -27,7 +26,7 @@ class Trawler(object):
 
     def _notifyListeners(self, regionID, typeID, orders):
         for listener in self._listeners:
-            listener.notify(datetime.utcnow(), regionID, typeID, orders)
+            listener.notify(regionID, typeID, orders)
 
     def getItemList(self):
         # This is basically a cheat around having to enumerate all types in
