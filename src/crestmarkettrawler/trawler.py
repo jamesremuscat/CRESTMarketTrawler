@@ -32,8 +32,8 @@ class Trawler(object):
             region = choice(regions)
             logger.info("Trawling region {0}".format(region.name))
             for item in items:
-                sellOrders = region.marketSellOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item.id)).items
-                buyOrders = region.marketBuyOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item.id)).items
+                sellOrders = region.marketSellOrders(type=item.href).items
+                buyOrders = region.marketBuyOrders(type=item.href).items
                 orders = sellOrders + buyOrders
                 logger.info(u"Retrieved {0} orders for {1}".format(len(orders), item.name))
 
