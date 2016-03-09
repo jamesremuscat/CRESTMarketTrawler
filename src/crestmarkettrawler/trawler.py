@@ -47,10 +47,15 @@ class Trawler(object):
                 logger.info(u"Retrieved {0} orders for {1}".format(len(orders), item.name))
                 self._notifyListeners(region.id, item.id, orders)
 
-if __name__ == '__main__':
+
+def main():
     logging.basicConfig(level=logging.INFO)
     t = Trawler()
     u = EMDRUploader()
     t.addListener(u)
     u.start()
     t.trawlMarket()
+
+
+if __name__ == '__main__':
+    main()
