@@ -15,10 +15,14 @@ REQUESTS_PER_SECOND = 50
 logger = logging.getLogger("trawler")
 
 
+def getEVE():
+    return pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+
+
 class Trawler(object):
     def __init__(self):
         Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
-        self._eve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+        self._eve = getEVE()
         self._listeners = []
 
     def addListener(self, listener):
