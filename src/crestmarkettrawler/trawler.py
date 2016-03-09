@@ -1,10 +1,12 @@
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
-from random import choice
+from Queue import PriorityQueue
 from requests import Session
 from _version import __version__ as VERSION
+
 import logging
 import pycrest
+import time
 
 
 THERA_REGION = 11000031
@@ -24,6 +26,7 @@ class Trawler(object):
         Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
         self._eve = getEVE()
         self._listeners = []
+        self._itemQueue = PriorityQueue()
 
     def addListener(self, listener):
         self._listeners.append(listener)
@@ -32,24 +35,26 @@ class Trawler(object):
         for listener in self._listeners:
             listener.notify(regionID, typeID, orders)
 
-    def getItemList(self):
-        # This is basically a cheat around having to enumerate all types in
-        # market groups, or worse, having to poll for each item to find its
-        # market group ID!
-        return [item.type for item in getAllItems(self._eve().marketPrices())]
+    def populateItemQueue(self):
+        # Use of marketPrices() is basically a cheat around having to enumerate
+        # all types in market groups, or worse, having to poll for each item to
+        # find its market group ID!
+        for item in getAllItems(self._eve().marketPrices()):
+            self._itemQueue.put((0, item.type))
 
     def trawlMarket(self):
-        items = self.getItemList()
+        self.populateItemQueue()
         regions = [region() for region in self._eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
         while True:
-            region = choice(regions)
-            logger.info("Trawling region {0}".format(region.name))
-            for item in items:
+            (_, item) = self._itemQueue.get()
+            logger.info("Trawling for item {0}".format(item.name))
+            for region in regions:
                 sellOrders = region.marketSellOrders(type=item.href).items
                 buyOrders = region.marketBuyOrders(type=item.href).items
                 orders = sellOrders + buyOrders
-                logger.info(u"Retrieved {0} orders for {1}".format(len(orders), item.name))
+                logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
                 self._notifyListeners(region.id, item.id, orders)
+            self._itemQueue.put((time.time(), item))
 
 
 def main():
