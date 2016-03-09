@@ -27,7 +27,7 @@ setup(
       """,
     setup_requires=[],
     tests_require=[],
-    install_requires=["pycrest", "requests", "simplejson"],
+    install_requires=["gevent", "pycrest", "requests", "simplejson"],
     entry_points={
         'console_scripts': [
             'CRESTMarketTrawler = crestmarkettrawler.trawler:main',
