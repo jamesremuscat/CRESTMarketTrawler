@@ -6,7 +6,6 @@ from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
 from gevent.pool import Pool
 from Queue import PriorityQueue
-from requests import Session
 from _version import __version__ as VERSION
 
 import logging
@@ -16,7 +15,7 @@ import time
 
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
-REQUESTS_PER_SECOND_PER_WORKER = 10
+REQUESTS_PER_SECOND = 60
 SIMULTANEUOUS_WORKERS = 10
 
 
@@ -33,8 +32,6 @@ def getRegions():
 
 class Trawler(object):
     def __init__(self):
-        Session.get = RateLimited(REQUESTS_PER_SECOND_PER_WORKER)(Session.get)
-        self._eve = getEVE()
         self._listeners = []
         self._itemQueue = PriorityQueue()
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
@@ -50,8 +47,15 @@ class Trawler(object):
         # Use of marketPrices() is basically a cheat around having to enumerate
         # all types in market groups, or worse, having to poll for each item to
         # find its market group ID!
-        for item in getAllItems(self._eve().marketPrices()):
+        for item in getAllItems(getEVE()().marketPrices()):
             self._itemQueue.put((0, item.type))
+
+    @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
+    def limitPollRate(self):
+        # This method is called by each of the greenlets polling the CREST API.
+        # Its sole purpose is to sleep long enough that the CREST rate limit is
+        # not exceeded - this is handled by the decorator.
+        pass
 
     def trawlMarket(self):
         self.populateItemQueue()
@@ -64,6 +68,7 @@ class Trawler(object):
                 orders = sellOrders + buyOrders
                 logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
                 self._notifyListeners(region.id, item.id, orders)
+                self.limitPollRate()
             self._itemQueue.put((time.time(), item))
 
         while True:
