@@ -1,4 +1,5 @@
 from contrib import getAllItems, RateLimited
+from emdr import EMDRUploader
 from random import choice
 from requests import Session
 from _version import __version__ as VERSION
@@ -23,9 +24,9 @@ class Trawler(object):
     def addListener(self, listener):
         self._listeners.append(listener)
 
-    def _notifyListeners(self, orders):
+    def _notifyListeners(self, regionID, orders):
         for listener in self._listeners:
-            listener.notify(orders)
+            listener.notify(regionID, orders)
 
     def getItemList(self):
         # This is basically a cheat around having to enumerate all types in
@@ -44,8 +45,11 @@ class Trawler(object):
                 buyOrders = region.marketBuyOrders(type=item.href).items
                 orders = sellOrders + buyOrders
                 logger.info(u"Retrieved {0} orders for {1}".format(len(orders), item.name))
-                self._notifyListeners(orders)
+                self._notifyListeners(region.id, orders)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    Trawler().trawlMarket()
+    t = Trawler()
+    u = EMDRUploader()
+    t.addListener(u)
+    t.trawlMarket()
