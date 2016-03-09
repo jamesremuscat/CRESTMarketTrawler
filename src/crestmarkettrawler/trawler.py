@@ -1,4 +1,4 @@
-from contrib import RateLimited
+from contrib import getAllItems, RateLimited
 from random import choice
 from requests import Session
 from _version import __version__ as VERSION
@@ -16,17 +16,23 @@ class Trawler(object):
         Session.get = RateLimited(REQUESTS_PER_SECOND)(Session.get)
         self._eve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
 
+    def getItemList(self):
+        # This is basically a cheat around having to enumerate all types in
+        # market groups, or worse, having to poll for each item to find its
+        # market group ID!
+        return [item.type for item in getAllItems(self._eve().marketPrices())]
+
     def trawlMarket(self):
-        items = [34, 35, 36]
+        items = self.getItemList()
         regions = [region() for region in self._eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
         while True:
             region = choice(regions)
             logging.info("Trawling region {0}".format(region.name))
             for item in items:
-                sellOrders = region.marketSellOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item)).items
-                buyOrders = region.marketBuyOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item)).items
+                sellOrders = region.marketSellOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item.id)).items
+                buyOrders = region.marketBuyOrders(type="https://public-crest.eveonline.com/types/{0}/".format(item.id)).items
                 orders = sellOrders + buyOrders
-                logging.info("Retrieved {0} orders for type {1}".format(len(orders), item))
+                logging.info("Retrieved {0} orders for {1}".format(len(orders), item.name))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
