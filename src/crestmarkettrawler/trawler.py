@@ -97,6 +97,8 @@ class Trawler(object):
 
 def main():
     logging.basicConfig(level=logging.INFO)
+    # Hide messages caused by eve-emdr.com not supporting keep-alive
+    logging.getLogger("requests").setLevel(logging.WARN)
     t = Trawler()
     u = EMDRUploader()
     t.addListener(u)
