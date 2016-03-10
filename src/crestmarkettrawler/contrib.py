@@ -1,5 +1,5 @@
 from datetime import datetime
-from time import clock, sleep
+from time import time, sleep
 
 
 def timestampString():
@@ -15,12 +15,12 @@ def RateLimited(maxPerSecond):
         lastTimeCalled = [0.0]
 
         def rateLimitedFunction(*args, **kargs):
-            elapsed = clock() - lastTimeCalled[0]
+            elapsed = time() - lastTimeCalled[0]
             leftToWait = minInterval - elapsed
             if leftToWait > 0:
                 sleep(leftToWait)
             ret = func(*args, **kargs)
-            lastTimeCalled[0] = clock()
+            lastTimeCalled[0] = time()
             return ret
         return rateLimitedFunction
     return decorate
