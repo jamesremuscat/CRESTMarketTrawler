@@ -33,6 +33,19 @@ def clearMarketCache(eve):
         eve.cache._cache.pop(key)
 
 
+class pooled_eve():
+    def __init__(self, eves):
+        self.eves = eves
+
+    def __enter__(self):
+        self.myEve = self.eves.get()
+        return self.myEve
+
+    def __exit__(self, *args):
+        clearMarketCache(self.myEve)
+        self.eves.put(self.myEve)
+
+
 class Trawler(object):
     def __init__(self):
         self._listeners = []
@@ -54,10 +67,9 @@ class Trawler(object):
         # Use of marketPrices() is basically a cheat around having to enumerate
         # all types in market groups, or worse, having to poll for each item to
         # find its market group ID!
-        eve = self._evePool.get()
-        for item in getAllItems(eve().marketPrices()):
-            self._itemQueue.put((0, item.type))
-        self._evePool.put(eve)
+        with pooled_eve(self._evePool) as eve:
+            for item in getAllItems(eve().marketPrices()):
+                self._itemQueue.put((0, item.type))
 
     @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
     def limitPollRate(self):
@@ -71,17 +83,15 @@ class Trawler(object):
 
         def processItem(item):
             logger.info("Trawling for item {0}".format(item.name))
-            eve = self._evePool.get()
-            for region in getRegions(eve):
-                sellOrders = region.marketSellOrders(type=item.href).items
-                buyOrders = region.marketBuyOrders(type=item.href).items
-                orders = sellOrders + buyOrders
-                logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
-                self._notifyListeners(region.id, item.id, orders)
-                self.limitPollRate()
-            self._itemQueue.put((time.time(), item))
-            clearMarketCache(eve)
-            self._evePool.put(eve)
+            with pooled_eve(self._evePool) as eve:
+                for region in getRegions(eve):
+                    sellOrders = region.marketSellOrders(type=item.href).items
+                    buyOrders = region.marketBuyOrders(type=item.href).items
+                    orders = sellOrders + buyOrders
+                    logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
+                    self._notifyListeners(region.id, item.id, orders)
+                    self.limitPollRate()
+                self._itemQueue.put((time.time(), item))
 
         while True:
             (_, item) = self._itemQueue.get()
