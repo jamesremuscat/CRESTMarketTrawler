@@ -26,13 +26,6 @@ def getRegions(eve):
     return [region() for region in eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
 
 
-def clearMarketCache(eve):
-    # Reduce memory overhead by clearing out market orders from this eve
-    keys = [k for k in eve.cache._cache.keys() if 'market' in k[0]]
-    for key in keys:
-        eve.cache._cache.pop(key)
-
-
 class pooled_eve():
     def __init__(self, eves):
         self.eves = eves
@@ -42,7 +35,10 @@ class pooled_eve():
         return self.myEve
 
     def __exit__(self, *args):
-        clearMarketCache(self.myEve)
+        # Reduce memory overhead by clearing out market orders from this eve
+        keys = [k for k in self.myEve.cache._cache.keys() if 'market' in k[0]]
+        for key in keys:
+            self.myEve.cache._cache.pop(key)
         self.eves.put(self.myEve)
 
 
@@ -56,6 +52,9 @@ class Trawler(object):
             newEve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
             self._evePool.put(newEve)
 
+    def pooledEVE(self):
+        return pooled_eve(self._evePool)
+
     def addListener(self, listener):
         self._listeners.append(listener)
 
@@ -67,7 +66,7 @@ class Trawler(object):
         # Use of marketPrices() is basically a cheat around having to enumerate
         # all types in market groups, or worse, having to poll for each item to
         # find its market group ID!
-        with pooled_eve(self._evePool) as eve:
+        with self.pooledEVE() as eve:
             for item in getAllItems(eve().marketPrices()):
                 self._itemQueue.put((0, item.type))
 
@@ -83,7 +82,7 @@ class Trawler(object):
 
         def processItem(item):
             logger.info("Trawling for item {0}".format(item.name))
-            with pooled_eve(self._evePool) as eve:
+            with self.pooledEVE() as eve:
                 for region in getRegions(eve):
                     sellOrders = region.marketSellOrders(type=item.href).items
                     buyOrders = region.marketBuyOrders(type=item.href).items
