@@ -5,7 +5,7 @@ gevent.monkey.patch_all()  # nopep8
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
 from gevent.pool import Pool
-from Queue import PriorityQueue
+from Queue import Queue, PriorityQueue
 from _version import __version__ as VERSION
 
 import logging
@@ -22,12 +22,15 @@ SIMULTANEUOUS_WORKERS = 5
 logger = logging.getLogger("trawler")
 
 
-def getEVE():
-    return pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
-
-
 def getRegions(eve):
     return [region() for region in eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
+
+
+def clearMarketCache(eve):
+    # Reduce memory overhead by clearing out market orders from this eve
+    keys = [k for k in eve.cache._cache.keys() if 'market' in k[0]]
+    for key in keys:
+        eve.cache._cache.pop(key)
 
 
 class Trawler(object):
@@ -35,6 +38,10 @@ class Trawler(object):
         self._listeners = []
         self._itemQueue = PriorityQueue()
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
+        self._evePool = Queue(SIMULTANEUOUS_WORKERS)
+        for _ in range(SIMULTANEUOUS_WORKERS):
+            newEve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+            self._evePool.put(newEve)
 
     def addListener(self, listener):
         self._listeners.append(listener)
@@ -47,8 +54,10 @@ class Trawler(object):
         # Use of marketPrices() is basically a cheat around having to enumerate
         # all types in market groups, or worse, having to poll for each item to
         # find its market group ID!
-        for item in getAllItems(getEVE()().marketPrices()):
+        eve = self._evePool.get()
+        for item in getAllItems(eve().marketPrices()):
             self._itemQueue.put((0, item.type))
+        self._evePool.put(eve)
 
     @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
     def limitPollRate(self):
@@ -62,7 +71,7 @@ class Trawler(object):
 
         def processItem(item):
             logger.info("Trawling for item {0}".format(item.name))
-            eve = getEVE()
+            eve = self._evePool.get()
             for region in getRegions(eve):
                 sellOrders = region.marketSellOrders(type=item.href).items
                 buyOrders = region.marketBuyOrders(type=item.href).items
@@ -71,7 +80,8 @@ class Trawler(object):
                 self._notifyListeners(region.id, item.id, orders)
                 self.limitPollRate()
             self._itemQueue.put((time.time(), item))
-            eve._session.close()
+            clearMarketCache(eve)
+            self._evePool.put(eve)
 
         while True:
             (_, item) = self._itemQueue.get()
