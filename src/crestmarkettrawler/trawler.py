@@ -47,13 +47,11 @@ class Trawler(object):
         self._listeners = []
         self._itemQueue = PriorityQueue()
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
-        self._evePool = Queue(SIMULTANEUOUS_WORKERS)
+        evePool = Queue(SIMULTANEUOUS_WORKERS)
         for _ in range(SIMULTANEUOUS_WORKERS):
             newEve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
-            self._evePool.put(newEve)
-
-    def pooledEVE(self):
-        return pooled_eve(self._evePool)
+            evePool.put(newEve)
+        self.pooledEVE = lambda: pooled_eve(evePool)
 
     def addListener(self, listener):
         self._listeners.append(listener)
