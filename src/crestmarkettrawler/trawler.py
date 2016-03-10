@@ -5,6 +5,7 @@ gevent.monkey.patch_all()  # nopep8
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
 from gevent.pool import Pool
+from os import getenv
 from Queue import Queue, PriorityQueue
 from _version import __version__ as VERSION
 
@@ -15,8 +16,8 @@ import time
 
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
-REQUESTS_PER_SECOND = 60
-SIMULTANEUOUS_WORKERS = 5
+REQUESTS_PER_SECOND = int(getenv("REQUESTS_PER_SECOND", "60"))
+SIMULTANEUOUS_WORKERS = int(getenv("NUM_CONNECTIONS", "5"))
 
 
 logger = logging.getLogger("trawler")
