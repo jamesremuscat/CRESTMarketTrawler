@@ -85,13 +85,17 @@ class Trawler(object):
             logger.info("Trawling for item {0}".format(item.name))
             with self.pooledEVE() as eve:
                 for region in getRegions(eve):
-                    sellOrders = region.marketSellOrders(type=item.href).items
-                    buyOrders = region.marketBuyOrders(type=item.href).items
-                    orders = sellOrders + buyOrders
-                    logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
-                    self.statsCollector.tally("trawler_orders_received", len(orders))
-                    self._notifyListeners(region.id, item.id, orders)
-                    self.limitPollRate()
+                    try:
+                        sellOrders = region.marketSellOrders(type=item.href).items
+                        buyOrders = region.marketBuyOrders(type=item.href).items
+                        orders = sellOrders + buyOrders
+                        logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
+                        self.statsCollector.tally("trawler_orders_received", len(orders))
+                        self._notifyListeners(region.id, item.id, orders)
+                        self.limitPollRate()
+                    except Exception as e:
+                        self.statsCollector.tally("trawler_exceptions")
+                        logger.exception(e)
                 self.statsCollector.tally("trawler_item_processed")
                 self._itemQueue.put((time.time(), item))
 
