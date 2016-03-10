@@ -26,8 +26,8 @@ def getEVE():
     return pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
 
 
-def getRegions():
-    return [region() for region in getEVE()().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
+def getRegions(eve):
+    return [region() for region in eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
 
 
 class Trawler(object):
@@ -62,7 +62,8 @@ class Trawler(object):
 
         def processItem(item):
             logger.info("Trawling for item {0}".format(item.name))
-            for region in getRegions():
+            eve = getEVE()
+            for region in getRegions(eve):
                 sellOrders = region.marketSellOrders(type=item.href).items
                 buyOrders = region.marketBuyOrders(type=item.href).items
                 orders = sellOrders + buyOrders
@@ -70,6 +71,7 @@ class Trawler(object):
                 self._notifyListeners(region.id, item.id, orders)
                 self.limitPollRate()
             self._itemQueue.put((time.time(), item))
+            eve._session.close()
 
         while True:
             (_, item) = self._itemQueue.get()
