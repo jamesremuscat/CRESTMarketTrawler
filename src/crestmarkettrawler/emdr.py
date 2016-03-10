@@ -73,7 +73,7 @@ def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
 
 
 class EMDRUploader(Thread):
-    def __init__(self):
+    def __init__(self, statsCollector):
         Thread.__init__(self)
         self._queue = Queue()
         self.setDaemon(True)
@@ -82,9 +82,11 @@ class EMDRUploader(Thread):
             "User-Agent": "CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION)
         })
         self._pool = Pool(size=10)
+        self.statsCollector = statsCollector
 
     def notify(self, regionID, typeID, orders):
         self._queue.put((timestampString(), regionID, typeID, orders))
+        self.statsCollector.tally("emdr_send_queued")
         if self._queue.qsize() > 100:
             logger.error("EMDR submit queue is about {0} items long!".format(self._queue.qsize()))
         elif self._queue.qsize() > 10:
@@ -94,8 +96,10 @@ class EMDRUploader(Thread):
         def submit(generationTime, regionID, typeID, orders):
             uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, typeID, orders))
             res = self._session.post("http://upload.eve-emdr.com/upload/", data=uudif)
+            self.statsCollector.tally("emdr_sent")
             if res.status_code != 200:
                 logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
+                self.statsCollector.tally("emdr_errored")
 
         while True:
             (generationTime, regionID, typeID, orders) = self._queue.get()

@@ -7,6 +7,7 @@ from emdr import EMDRUploader
 from gevent.pool import Pool
 from os import getenv
 from Queue import Queue, PriorityQueue
+from stats import StatsCollector, StatsPrinter
 from _version import __version__ as VERSION
 
 import logging
@@ -44,7 +45,7 @@ class pooled_eve():
 
 
 class Trawler(object):
-    def __init__(self):
+    def __init__(self, statsCollector):
         self._listeners = []
         self._itemQueue = PriorityQueue()
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
@@ -53,6 +54,7 @@ class Trawler(object):
             newEve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
             evePool.put(newEve)
         self.pooledEVE = lambda: pooled_eve(evePool)
+        self.statsCollector = statsCollector
 
     def addListener(self, listener):
         self._listeners.append(listener)
@@ -87,8 +89,10 @@ class Trawler(object):
                     buyOrders = region.marketBuyOrders(type=item.href).items
                     orders = sellOrders + buyOrders
                     logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
+                    self.statsCollector.tally("trawler_orders_received", len(orders))
                     self._notifyListeners(region.id, item.id, orders)
                     self.limitPollRate()
+                self.statsCollector.tally("trawler_item_processed")
                 self._itemQueue.put((time.time(), item))
 
         while True:
@@ -100,8 +104,12 @@ def main():
     logging.basicConfig(level=logging.INFO)
     # Hide messages caused by eve-emdr.com not supporting keep-alive
     logging.getLogger("requests").setLevel(logging.WARN)
-    t = Trawler()
-    u = EMDRUploader()
+    s = StatsCollector()
+    sp = StatsPrinter(s)
+    s.start()
+    sp.start()
+    t = Trawler(s)
+    u = EMDRUploader(s)
     t.addListener(u)
     u.start()
     t.trawlMarket()
