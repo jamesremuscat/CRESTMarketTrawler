@@ -6,6 +6,9 @@ from itertools import islice
 from threading import Lock, Thread
 from time import sleep
 
+import logging
+import simplejson
+
 
 class StatsCollector(Thread):
     '''
@@ -64,13 +67,18 @@ class StatsCollector(Thread):
         return summary
 
 
-class StatsPrinter(Thread):
-    def __init__(self, statsCollector):
-        super(StatsPrinter, self).__init__()
+class StatsWriter(Thread):
+    def __init__(self, statsCollector, fileName='stats.json'):
+        super(StatsWriter, self).__init__()
         self.statsCollector = statsCollector
+        self.fileName = fileName
         self.setDaemon(True)
+        self.logger = logging.getLogger("stats_writer")
 
     def run(self):
         while True:
             sleep(60)
-            print self.statsCollector.getSummary()
+            summary = self.statsCollector.getSummary()
+            self.logger.info("Statistics update: {0}".format(summary))
+            with open(self.fileName, 'w') as f:
+                simplejson.dump(summary, f)

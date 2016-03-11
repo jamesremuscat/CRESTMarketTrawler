@@ -7,7 +7,7 @@ from emdr import EMDRUploader
 from gevent.pool import Pool
 from os import getenv
 from Queue import Queue, PriorityQueue
-from stats import StatsCollector, StatsPrinter
+from stats import StatsCollector, StatsWriter
 from _version import __version__ as VERSION
 
 import logging
@@ -109,9 +109,9 @@ def main():
     # Hide messages caused by eve-emdr.com not supporting keep-alive
     logging.getLogger("requests").setLevel(logging.WARN)
     s = StatsCollector()
-    sp = StatsPrinter(s)
+    sw = StatsWriter(s)
     s.start()
-    sp.start()
+    sw.start()
     t = Trawler(s)
     u = EMDRUploader(s)
     t.addListener(u)
