@@ -87,10 +87,12 @@ class EMDRUploader(Thread):
     def notify(self, regionID, typeID, orders):
         self._queue.put((timestampString(), regionID, typeID, orders))
         self.statsCollector.tally("emdr_send_queued")
-        if self._queue.qsize() > 100:
-            logger.error("EMDR submit queue is about {0} items long!".format(self._queue.qsize()))
-        elif self._queue.qsize() > 10:
-            logger.warn("EMDR submit queue is about {0} items long!".format(self._queue.qsize()))
+        queueSize = self._queue.qsize()
+        self.statsCollector.datapoint("emdr_queue_size", queueSize)
+        if queueSize > 100:
+            logger.error("EMDR submit queue is about {0} items long!".format(queueSize))
+        elif queueSize > 10:
+            logger.warn("EMDR submit queue is about {0} items long!".format(queueSize))
 
     def run(self):
         def submit(generationTime, regionID, typeID, orders):

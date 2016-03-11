@@ -23,6 +23,7 @@ class StatsCollector(Thread):
         self.daemon = True
         self.current = {}
         self.history = {}
+        self.datapoints = {}
         self.lock = Lock()
         self.starttime = 0
 
@@ -44,6 +45,9 @@ class StatsCollector(Thread):
             else:
                 self.current[key] += count
 
+    def datapoint(self, key, value):
+        self.datapoints[key] = value
+
     def getCount(self, key, minutes):
         if key in self.history:
             return sum(islice(self.history[key], 0, min(minutes, self.max_minutes)))
@@ -58,6 +62,9 @@ class StatsCollector(Thread):
                 "5min": self.getCount(key, 5),
                 "60min": self.getCount(key, 60)
             }
+
+        for key, value in self.datapoints.iteritems():
+            summary[key] = value
 
         summary['uptime'] = int((datetime.utcnow() - self.starttime).total_seconds())
 
