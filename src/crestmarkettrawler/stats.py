@@ -68,6 +68,7 @@ class StatsPrinter(Thread):
     def __init__(self, statsCollector):
         super(StatsPrinter, self).__init__()
         self.statsCollector = statsCollector
+        self.setDaemon(True)
 
     def run(self):
         while True:
