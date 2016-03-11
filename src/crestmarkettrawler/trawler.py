@@ -38,9 +38,9 @@ class pooled_eve():
 
     def __exit__(self, *args):
         # Reduce memory overhead by clearing out market orders from this eve
-        keys = [k for k in self.myEve.cache._cache.keys() if 'market' in k[0]]
+        keys = [k for k in self.myEve.cache._dict.keys() if 'market' in k[0]]
         for key in keys:
-            self.myEve.cache._cache.pop(key)
+            self.myEve.cache._dict.pop(key)
         self.eves.put(self.myEve)
 
 
@@ -51,7 +51,7 @@ class Trawler(object):
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
         evePool = Queue(SIMULTANEUOUS_WORKERS)
         for _ in range(SIMULTANEUOUS_WORKERS):
-            newEve = pycrest.EVE(cache_dir='cache/', user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+            newEve = pycrest.EVE(user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
             evePool.put(newEve)
         self.pooledEVE = lambda: pooled_eve(evePool)
         self.statsCollector = statsCollector
