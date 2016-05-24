@@ -118,6 +118,7 @@ class EMDRUploader(Thread):
                            # 'Transfer-Encoding': 'gzip'  # what is strictly true
                            }
                 gzfile.seek(0, 0)
+                logger.info("Submitting to EMDR for region {}".format(regionID))
                 res = self._session.post("http://upload.eve-emdr.com/upload/", data=gzfile, headers=headers)
                 self.statsCollector.tally("emdr_sent")
             if res.status_code != 200:

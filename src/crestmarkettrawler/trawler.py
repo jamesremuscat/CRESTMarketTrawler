@@ -4,9 +4,8 @@ gevent.monkey.patch_all()  # nopep8
 
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
-from gevent.pool import Pool
 from os import getenv
-from Queue import Queue, PriorityQueue
+from Queue import PriorityQueue
 from stats import StatsCollector, StatsWriter
 from _version import __version__ as VERSION
 
@@ -57,11 +56,10 @@ class Trawler(object):
         for region in getRegions(self.eve):
             self._regionsQueue.put((0, region))
 
-    @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
+    @RateLimited(REQUESTS_PER_SECOND)
     def limitPollRate(self):
-        # This method is called by each of the greenlets polling the CREST API.
-        # Its sole purpose is to sleep long enough that the CREST rate limit is
-        # not exceeded - this is handled by the decorator.
+        # This method's sole purpose is to sleep long enough that the CREST
+        # rate limit is not exceeded - this is handled by the decorator.
         pass
 
     def trawlMarket(self):
@@ -70,11 +68,14 @@ class Trawler(object):
         def processRegion(region):
             logger.info("Trawling for region {0}".format(region.name))
             try:
-                orders = getAllItems(region.marketOrdersAll)
-                logger.info(u"Retrieved {0} orders for region {1}".format(len(orders), region.name))
-                self.statsCollector.tally("trawler_orders_received", len(orders))
+                ordersPage = region.marketOrdersAll()
+                processOrderPage(region, ordersPage.items)
 
-                self._notifyListeners(region.id,  orders)
+                while hasattr(ordersPage(), 'next'):
+                    self.limitPollRate()
+                    ordersPage = ordersPage().next()
+                    processOrderPage(region, ordersPage.items)
+
                 cleanEveCache(self.eve)
                 self.limitPollRate()
 
@@ -83,6 +84,11 @@ class Trawler(object):
                 logger.exception(e)
             self.statsCollector.tally("trawler_item_processed")
             self._regionsQueue.put((time.time(), region))
+
+        def processOrderPage(region, orders):
+            logger.info(u"Retrieved {0} orders for region {1} ({2})".format(len(orders), region.id, region.name))
+            self.statsCollector.tally("trawler_orders_received", len(orders))
+            self._notifyListeners(region.id, orders)
 
         while True:
             (_, region) = self._regionsQueue.get()
