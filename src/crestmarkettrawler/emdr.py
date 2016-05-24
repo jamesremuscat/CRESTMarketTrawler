@@ -7,9 +7,11 @@ from _version import __version__ as VERSION
 from contrib import timestampString
 from gevent.pool import Pool
 from Queue import Queue
+from tempfile import TemporaryFile
 from threading import Thread
 from requests.sessions import Session
 
+import gzip
 import logging
 import simplejson as json
 
@@ -106,10 +108,18 @@ class EMDRUploader(Thread):
 
     def run(self):
         def submit(generationTime, regionID, orders):
-            uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, orders))
-            print uudif
-            res = self._session.post("http://upload.eve-emdr.com/upload/", data=uudif)
-            self.statsCollector.tally("emdr_sent")
+            with TemporaryFile() as gzfile:
+                json.dump(
+                    EMDROrdersAdapter(generationTime, regionID, orders),
+                    gzip.GzipFile(fileobj=gzfile, mode="wb")
+                )
+                headers = {'Content-Length': gzfile.tell(),
+                           'Content-Encoding': 'gzip',  # what EMDR wants
+                           # 'Transfer-Encoding': 'gzip'  # what is strictly true
+                           }
+                gzfile.seek(0, 0)
+                res = self._session.post("http://upload.eve-emdr.com/upload/", data=gzfile, headers=headers)
+                self.statsCollector.tally("emdr_sent")
             if res.status_code != 200:
                 logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
                 self.statsCollector.tally("emdr_errored")
