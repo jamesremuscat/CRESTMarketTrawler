@@ -82,7 +82,7 @@ class Trawler(object):
             except Exception as e:
                 self.statsCollector.tally("trawler_exceptions")
                 logger.exception(e)
-            self.statsCollector.tally("trawler_item_processed")
+            self.statsCollector.tally("trawler_region_processed")
             self._regionsQueue.put((time.time(), region))
 
         def processOrderPage(region, orders):
