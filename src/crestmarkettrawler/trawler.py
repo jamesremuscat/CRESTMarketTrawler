@@ -52,6 +52,7 @@ class Trawler(object):
         evePool = Queue(SIMULTANEUOUS_WORKERS)
         for _ in range(SIMULTANEUOUS_WORKERS):
             newEve = pycrest.EVE(user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+            newEve._endpoint = "https://crest-tq.eveonline.com/"
             evePool.put(newEve)
         self.pooledEVE = lambda: pooled_eve(evePool)
         self.statsCollector = statsCollector
