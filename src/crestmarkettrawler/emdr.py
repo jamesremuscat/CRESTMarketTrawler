@@ -26,7 +26,7 @@ COLUMNS = [
     ("bid", lambda o: o.buy),
     ("issueDate", lambda o: o.issued + "+00:00"),
     ("duration", lambda o: o.duration),
-    ("stationID", lambda o: o.location.id),
+    ("stationID", lambda o: o.stationID),
     ("solarSystemID", lambda _: None)  # Not available through CREST :(
 ]
 
@@ -49,8 +49,16 @@ def EMDROrderAdapter(order):
     return [adapt(order) for adapt in COL_FUNCTIONS]
 
 
-def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
-    rows = [EMDROrderAdapter(order) for order in orders]
+def EMDROrdersAdapter(generationTime, regionID, orders):
+    rowsets = []
+    for (typeID, typeOrders) in splitOrdersPerType(orders).iteritems():
+        rows = [EMDROrderAdapter(order) for order in typeOrders]
+        rowsets.append({
+            "generatedAt": generationTime,
+            "regionID": regionID,
+            "typeID": typeID,
+            "rows": rows
+        })
     return {
         "resultType": "orders",
         "version": "0.1",
@@ -61,15 +69,17 @@ def EMDROrdersAdapter(generationTime, regionID, typeID, orders):
         },
         "currentTime": timestampString(),
         "columns": COL_NAMES,
-        "rowsets": [
-            {
-                "generatedAt": generationTime,
-                "regionID": regionID,
-                "typeID": typeID,
-                "rows": rows
-            }
-        ]
+        "rowsets": rowsets
     }
+
+
+def splitOrdersPerType(orders):
+    perType = {}
+    for order in orders:
+        if order.type not in perType:
+            perType[order.type] = []
+        perType[order.type].append(order)
+    return perType
 
 
 class EMDRUploader(Thread):
@@ -84,8 +94,8 @@ class EMDRUploader(Thread):
         self._pool = Pool(size=10)
         self.statsCollector = statsCollector
 
-    def notify(self, regionID, typeID, orders):
-        self._queue.put((timestampString(), regionID, typeID, orders))
+    def notify(self, regionID, orders):
+        self._queue.put((timestampString(), regionID, orders))
         self.statsCollector.tally("emdr_send_queued")
         queueSize = self._queue.qsize()
         self.statsCollector.datapoint("emdr_queue_size", queueSize)
@@ -95,8 +105,9 @@ class EMDRUploader(Thread):
             logger.warn("EMDR submit queue is about {0} items long!".format(queueSize))
 
     def run(self):
-        def submit(generationTime, regionID, typeID, orders):
-            uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, typeID, orders))
+        def submit(generationTime, regionID, orders):
+            uudif = json.dumps(EMDROrdersAdapter(generationTime, regionID, orders))
+            print uudif
             res = self._session.post("http://upload.eve-emdr.com/upload/", data=uudif)
             self.statsCollector.tally("emdr_sent")
             if res.status_code != 200:
@@ -104,5 +115,5 @@ class EMDRUploader(Thread):
                 self.statsCollector.tally("emdr_errored")
 
         while True:
-            (generationTime, regionID, typeID, orders) = self._queue.get()
-            self._pool.spawn(submit, generationTime, regionID, typeID, orders)
+            (generationTime, regionID, orders) = self._queue.get()
+            self._pool.spawn(submit, generationTime, regionID, orders)

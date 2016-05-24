@@ -17,7 +17,7 @@ import time
 
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
-REQUESTS_PER_SECOND = int(getenv("REQUESTS_PER_SECOND", "60"))
+REQUESTS_PER_SECOND = float(getenv("REQUESTS_PER_SECOND", "60"))
 SIMULTANEUOUS_WORKERS = int(getenv("NUM_CONNECTIONS", "5"))
 
 
@@ -25,7 +25,7 @@ logger = logging.getLogger("trawler")
 
 
 def getRegions(eve):
-    return [region() for region in eve().regions().items if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
+    return [region() for region in getAllItems(eve().regions()) if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
 
 
 class pooled_eve():
@@ -47,7 +47,7 @@ class pooled_eve():
 class Trawler(object):
     def __init__(self, statsCollector):
         self._listeners = []
-        self._itemQueue = PriorityQueue()
+        self._regionsQueue = PriorityQueue()
         self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
         evePool = Queue(SIMULTANEUOUS_WORKERS)
         for _ in range(SIMULTANEUOUS_WORKERS):
@@ -60,17 +60,15 @@ class Trawler(object):
     def addListener(self, listener):
         self._listeners.append(listener)
 
-    def _notifyListeners(self, regionID, typeID, orders):
+    def _notifyListeners(self, regionID, orders):
         for listener in self._listeners:
-            listener.notify(regionID, typeID, orders)
+            listener.notify(regionID, orders)
 
-    def populateItemQueue(self):
-        # Use of marketPrices() is basically a cheat around having to enumerate
-        # all types in market groups, or worse, having to poll for each item to
-        # find its market group ID!
+    def _populateRegionsQueue(self):
+        logger.info("Populating regions queue")
         with self.pooledEVE() as eve:
-            for item in getAllItems(eve().marketPrices()):
-                self._itemQueue.put((0, item.type))
+            for region in getRegions(eve):
+                self._regionsQueue.put((0, region))
 
     @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
     def limitPollRate(self):
@@ -80,29 +78,28 @@ class Trawler(object):
         pass
 
     def trawlMarket(self):
-        self.populateItemQueue()
+        self._populateRegionsQueue()
 
-        def processItem(item):
-            logger.info("Trawling for item {0}".format(item.name))
-            with self.pooledEVE() as eve:
-                for region in getRegions(eve):
-                    try:
-                        sellOrders = region.marketSellOrders(type=item.href).items
-                        buyOrders = region.marketBuyOrders(type=item.href).items
-                        orders = sellOrders + buyOrders
-                        logger.info(u"Retrieved {0} orders for {1} in region {2}".format(len(orders), item.name, region.name))
-                        self.statsCollector.tally("trawler_orders_received", len(orders))
-                        self._notifyListeners(region.id, item.id, orders)
-                        self.limitPollRate()
-                    except Exception as e:
-                        self.statsCollector.tally("trawler_exceptions")
-                        logger.exception(e)
-                self.statsCollector.tally("trawler_item_processed")
-                self._itemQueue.put((time.time(), item))
+        def processRegion(region):
+            logger.info("Trawling for region {0}".format(region.name))
+            try:
+                orders = getAllItems(region.marketOrdersAll)
+                logger.info(u"Retrieved {0} orders for region {1}".format(len(orders), region.name))
+                self.statsCollector.tally("trawler_orders_received", len(orders))
+
+                self._notifyListeners(region.id,  orders)
+
+                self.limitPollRate()
+
+            except Exception as e:
+                self.statsCollector.tally("trawler_exceptions")
+                logger.exception(e)
+            self.statsCollector.tally("trawler_item_processed")
+            self._regionsQueue.put((time.time(), region))
 
         while True:
-            (_, item) = self._itemQueue.get()
-            self._pool.spawn(processItem, item)
+            (_, region) = self._regionsQueue.get()
+            self._pool.spawn(processRegion, region)
 
 
 def main():
