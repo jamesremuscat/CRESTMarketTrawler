@@ -18,7 +18,6 @@ import time
 THERA_REGION = 11000031
 WORMHOLE_REGIONS_START = 11000000
 REQUESTS_PER_SECOND = float(getenv("REQUESTS_PER_SECOND", "60"))
-SIMULTANEUOUS_WORKERS = int(getenv("NUM_CONNECTIONS", "5"))
 
 
 logger = logging.getLogger("trawler")
@@ -28,33 +27,22 @@ def getRegions(eve):
     return [region() for region in getAllItems(eve().regions()) if region.id < WORMHOLE_REGIONS_START or region.id == THERA_REGION]
 
 
-class pooled_eve():
-    def __init__(self, eves):
-        self.eves = eves
-
-    def __enter__(self):
-        self.myEve = self.eves.get()
-        return self.myEve
-
-    def __exit__(self, *args):
-        # Reduce memory overhead by clearing out market orders from this eve
-        keys = [k for k in self.myEve.cache._dict.keys() if 'market' in k[0]]
-        for key in keys:
-            self.myEve.cache._dict.pop(key)
-        self.eves.put(self.myEve)
+def cleanEveCache(eve):
+    """
+    Reduce memory overhead by clearing out market orders from this eve.
+    """
+    keys = [k for k in eve.cache._dict.keys() if 'market' in k[0]]
+    for key in keys:
+        eve.cache._dict.pop(key)
 
 
 class Trawler(object):
     def __init__(self, statsCollector):
         self._listeners = []
         self._regionsQueue = PriorityQueue()
-        self._pool = Pool(size=SIMULTANEUOUS_WORKERS)
-        evePool = Queue(SIMULTANEUOUS_WORKERS)
-        for _ in range(SIMULTANEUOUS_WORKERS):
-            newEve = pycrest.EVE(user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
-            newEve._endpoint = "https://crest-tq.eveonline.com/"
-            evePool.put(newEve)
-        self.pooledEVE = lambda: pooled_eve(evePool)
+        self.eve = pycrest.EVE(user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+        self.eve._endpoint = "https://crest-tq.eveonline.com/"
+
         self.statsCollector = statsCollector
 
     def addListener(self, listener):
@@ -66,9 +54,8 @@ class Trawler(object):
 
     def _populateRegionsQueue(self):
         logger.info("Populating regions queue")
-        with self.pooledEVE() as eve:
-            for region in getRegions(eve):
-                self._regionsQueue.put((0, region))
+        for region in getRegions(self.eve):
+            self._regionsQueue.put((0, region))
 
     @RateLimited(REQUESTS_PER_SECOND / 2.0)  # Each call to processItem() makes two CREST calls
     def limitPollRate(self):
@@ -88,7 +75,7 @@ class Trawler(object):
                 self.statsCollector.tally("trawler_orders_received", len(orders))
 
                 self._notifyListeners(region.id,  orders)
-
+                cleanEveCache(self.eve)
                 self.limitPollRate()
 
             except Exception as e:
@@ -99,7 +86,7 @@ class Trawler(object):
 
         while True:
             (_, region) = self._regionsQueue.get()
-            self._pool.spawn(processRegion, region)
+            processRegion(region)
 
 
 def main():
