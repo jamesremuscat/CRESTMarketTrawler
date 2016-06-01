@@ -5,6 +5,7 @@ gevent.monkey.patch_all()  # nopep8
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader
 from os import getenv
+from postgres import PostgresAdapter
 from Queue import PriorityQueue
 from stats import StatsCollector, StatsWriter
 from _version import __version__ as VERSION
@@ -107,6 +108,9 @@ def main():
     u = EMDRUploader(s)
     t.addListener(u)
     u.start()
+    p = PostgresAdapter(s)
+    t.addListener(p)
+    p.start()
     t.trawlMarket()
 
 
