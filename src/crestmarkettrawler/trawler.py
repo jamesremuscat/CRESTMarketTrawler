@@ -12,6 +12,7 @@ from _version import __version__ as VERSION
 
 import logging
 import pycrest
+import random
 import time
 
 
@@ -54,8 +55,9 @@ class Trawler(object):
 
     def _populateRegionsQueue(self):
         logger.info("Populating regions queue")
-        for region in getRegions(self.eve):
-            self._regionsQueue.put((0, region))
+        regions = getRegions(self.eve)
+        for region in regions:
+            self._regionsQueue.put((random.randint(0, len(regions)), region))
 
     @RateLimited(REQUESTS_PER_SECOND)
     def limitPollRate(self):
