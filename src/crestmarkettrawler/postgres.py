@@ -56,8 +56,10 @@ class PostgresAdapter(Thread):
 
             cursor.execute("PREPARE insert_order (bigint, bigint, bigint, numeric, integer, smallint, integer, integer, boolean, timestamp without time zone, smallint, bigint, bigint, timestamp without time zone) AS INSERT INTO live_orders(orderID, typeID, regionID, price, volRemaining, range, volEntered, minVolume, isBid, issueDate, duration, stationID, solarSystemID, expiry) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)")
 
+
+            cursor.execute("DELETE FROM live_orders WHERE regionID=%s", [regionID])
+
             for order in orders:
-                cursor.execute("DELETE FROM live_orders WHERE typeID=%s AND regionID=%s", (order.type, regionID))
                 realIssueDate = dateutil.parser.parse(order.issued)
                 expiry = realIssueDate + datetime.timedelta(days = order.duration)
                 cursor.execute(

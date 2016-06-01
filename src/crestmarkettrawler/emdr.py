@@ -1,6 +1,7 @@
 # This should already have been done in trawler but just in case!
 import gevent
 from gevent import monkey
+
 gevent.monkey.patch_all()  # nopep8
 
 from _version import __version__ as VERSION
@@ -14,7 +15,6 @@ from requests.sessions import Session
 import gzip
 import logging
 import simplejson as json
-
 
 logger = logging.getLogger("emdr")
 
@@ -32,9 +32,10 @@ COLUMNS = [
     ("solarSystemID", lambda _: None)  # Not available through CREST :(
 ]
 
-
 COL_NAMES = [col[0] for col in COLUMNS]
 COL_FUNCTIONS = [col[1] for col in COLUMNS]
+
+CHUNK_SIZE = 30000
 
 
 def rangeAdapter(rangeStr):
@@ -108,22 +109,25 @@ class EMDRUploader(Thread):
 
     def run(self):
         def submit(generationTime, regionID, orders):
-            with TemporaryFile() as gzfile:
-                json.dump(
-                    EMDROrdersAdapter(generationTime, regionID, orders),
-                    gzip.GzipFile(fileobj=gzfile, mode="wb")
-                )
-                headers = {'Content-Length': gzfile.tell(),
-                           'Content-Encoding': 'gzip',  # what EMDR wants
-                           # 'Transfer-Encoding': 'gzip'  # what is strictly true
-                           }
-                gzfile.seek(0, 0)
-                logger.info("Submitting to EMDR for region {}".format(regionID))
-                res = self._session.post("http://upload.eve-emdr.com/upload/", data=gzfile, headers=headers)
-                self.statsCollector.tally("emdr_sent")
-            if res.status_code != 200:
-                logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
-                self.statsCollector.tally("emdr_errored")
+            chunks = [orders[x:x + CHUNK_SIZE] for x in xrange(0, len(orders), CHUNK_SIZE)]
+            for idx, orderChunk in enumerate(chunks):
+                with TemporaryFile() as gzfile:
+                    json.dump(
+                        EMDROrdersAdapter(generationTime, regionID, orderChunk),
+                        gzip.GzipFile(fileobj=gzfile, mode="wb")
+                    )
+                    headers = {'Content-Length': gzfile.tell(),
+                               'Content-Encoding': 'gzip',  # what EMDR wants
+                               # 'Transfer-Encoding': 'gzip'  # what is strictly true
+                               }
+                    gzfile.seek(0, 0)
+                    logger.info(
+                        "Submitting to EMDR for region {} (chunk {} of {})".format(regionID, idx + 1, len(chunks)))
+                    res = self._session.post("http://upload.eve-emdr.com/upload/", data=gzfile, headers=headers)
+                    self.statsCollector.tally("emdr_chunks_sent")
+                if res.status_code != 200:
+                    logger.error("Error {0} submitting to EMDR: {1}".format(res.status_code, res.content))
+                    self.statsCollector.tally("emdr_errored")
 
         while True:
             (generationTime, regionID, orders) = self._queue.get()

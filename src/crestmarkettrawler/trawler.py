@@ -71,13 +71,8 @@ class Trawler(object):
         def processRegion(region):
             logger.info("Trawling for region {0}".format(region.name))
             try:
-                ordersPage = region.marketOrdersAll()
-                processOrderPage(region, ordersPage.items)
-
-                while hasattr(ordersPage(), 'next'):
-                    self.limitPollRate()
-                    ordersPage = ordersPage().next()
-                    processOrderPage(region, ordersPage.items)
+                orders = getAllItems(region.marketOrdersAll())
+                processOrders(region, orders)
 
                 cleanEveCache(self.eve)
                 self.limitPollRate()
@@ -88,7 +83,7 @@ class Trawler(object):
             self.statsCollector.tally("trawler_region_processed")
             self._regionsQueue.put((time.time(), region))
 
-        def processOrderPage(region, orders):
+        def processOrders(region, orders):
             logger.info(u"Retrieved {0} orders for region {1} ({2})".format(len(orders), region.id, region.name))
             self.statsCollector.tally("trawler_orders_received", len(orders))
             self._notifyListeners(region.id, orders)
