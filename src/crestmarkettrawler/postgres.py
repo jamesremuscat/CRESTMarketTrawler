@@ -90,7 +90,7 @@ class PostgresAdapter(Thread):
                     self.statsCollector.datapoint("database_last_updated", datetime.datetime.now().isoformat())
                 except IntegrityError as e:
                     logger.error(e.message)
-                    m = duplicateOrderID.match(e.message)
+                    m = duplicateOrderID.search(e.message)
                     if m:
                         conn.rollback()
                         cursor.execute("DELETE FROM live_orders WHERE orderID=%s", [order.id])
