@@ -9,9 +9,10 @@ from threading import Thread
 import datetime
 import dateutil.parser
 import logging
+import os
 import psycopg2
 import psycogreen.gevent
-import os
+import re
 psycogreen.gevent.patch_psycopg()
 
 logger = logging.getLogger("postgres")
@@ -47,6 +48,8 @@ class PostgresAdapter(Thread):
 
     def run(self):
         conn = psycopg2.connect(user = os.environ.get("POSTGRES_USERNAME"), password = os.environ.get("POSTGRES_PASSWORD"), database = os.environ.get("POSTGRES_DB"), host = os.environ.get("POSTGRES_HOST", "localhost"))
+
+        duplicateOrderID = re.compile('Key \(orderid\)=\(([0-9]+)\) already exists')
 
         while True:
             (regionID, orders) = self._queue.get()
@@ -87,6 +90,11 @@ class PostgresAdapter(Thread):
                     self.statsCollector.datapoint("database_last_updated", datetime.datetime.now().isoformat())
                 except IntegrityError as e:
                     logger.error(e.message)
+                    m = duplicateOrderID.match(e.message)
+                    if m:
+                        conn.rollback()
+                        cursor.execute("DELETE FROM live_orders WHERE orderID=%s", [order.id])
+                        self._queue.put(regionID, orders)  # If at first you don't succeed...
 
             logger.info("Finished processing region {}".format(regionID))
 
