@@ -3,6 +3,7 @@ import gevent
 from gevent import monkey
 gevent.monkey.patch_all()  # nopep8
 
+from psycopg2._psycopg import IntegrityError
 from Queue import Queue
 from threading import Thread
 import datetime
@@ -62,27 +63,30 @@ class PostgresAdapter(Thread):
             for order in orders:
                 realIssueDate = dateutil.parser.parse(order.issued)
                 expiry = realIssueDate + datetime.timedelta(days = order.duration)
-                cursor.execute(
-                    "EXECUTE insert_order (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (
-                        order.id,
-                        order.type,
-                        regionID,
-                        order.price,
-                        order.volume,
-                        rangeAdapter(order.range),
-                        order.volumeEntered,
-                        order.minVolume,
-                        order.buy,
-                        order.issued,
-                        order.duration,
-                        order.stationID,
-                        None,
-                        expiry
+                try:
+                    cursor.execute(
+                        "EXECUTE insert_order (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            order.id,
+                            order.type,
+                            regionID,
+                            order.price,
+                            order.volume,
+                            rangeAdapter(order.range),
+                            order.volumeEntered,
+                            order.minVolume,
+                            order.buy,
+                            order.issued,
+                            order.duration,
+                            order.stationID,
+                            None,
+                            expiry
+                        )
                     )
-                )
-                self.statsCollector.tally("database_submitted")
-                self.statsCollector.datapoint("database_last_updated", datetime.datetime.now().isoformat())
+                    self.statsCollector.tally("database_submitted")
+                    self.statsCollector.datapoint("database_last_updated", datetime.datetime.now().isoformat())
+                except IntegrityError as e:
+                    logger.error(e.message)
 
             logger.info("Finished processing region {}".format(regionID))
 
