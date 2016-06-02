@@ -131,4 +131,5 @@ class EMDRUploader(Thread):
 
         while True:
             (generationTime, regionID, orders) = self._queue.get()
+            self.statsCollector.datapoint("emdr_queue_size", self._queue.qsize())
             self._pool.spawn(submit, generationTime, regionID, orders)
