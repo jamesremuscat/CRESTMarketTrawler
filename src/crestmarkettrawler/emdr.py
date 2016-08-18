@@ -116,7 +116,7 @@ class EMDRUploader(Thread):
                         EMDROrdersAdapter(generationTime, regionID, orderChunk),
                         gzip.GzipFile(fileobj=gzfile, mode="wb")
                     )
-                    headers = {'Content-Length': gzfile.tell(),
+                    headers = {'Content-Length': str(gzfile.tell()),
                                'Content-Encoding': 'gzip',  # what EMDR wants
                                # 'Transfer-Encoding': 'gzip'  # what is strictly true
                                }
