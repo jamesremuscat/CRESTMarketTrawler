@@ -103,6 +103,7 @@ def chunkOrders(orders):
             currentChunk = []
         logger.debug("Adding {} orders for type {} to chunk #{}".format(len(typeOrders), typeid, len(chunks)))
         currentChunk += typeOrders
+    chunks.append(currentChunk)
     return chunks
 
 
