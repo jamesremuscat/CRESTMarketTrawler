@@ -46,7 +46,12 @@ class PostgresAdapter(Thread):
             logger.warn("DB processing queue is about {0} items long!".format(queueSize))
 
     def run(self):
-        conn = psycopg2.connect(user = os.environ.get("POSTGRES_USERNAME"), password = os.environ.get("POSTGRES_PASSWORD"), database = os.environ.get("POSTGRES_DB"), host = os.environ.get("POSTGRES_HOST", "localhost"))
+        conn = psycopg2.connect(
+            user=os.environ.get("POSTGRES_USERNAME"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
+            database=os.environ.get("POSTGRES_DB"),
+            host=os.environ.get("POSTGRES_HOST", "localhost")
+        )
 
         with conn.cursor() as cursor:
             cursor.execute("PREPARE insert_order (bigint, bigint, bigint, numeric, integer, smallint, integer, integer, boolean, timestamp without time zone, smallint, bigint, bigint, timestamp without time zone) AS INSERT INTO live_orders(orderID, typeID, regionID, price, volRemaining, range, volEntered, minVolume, isBid, issueDate, duration, stationID, solarSystemID, expiry) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)")
@@ -76,7 +81,7 @@ class PostgresAdapter(Thread):
                     for order in uniqueOrders:
                         try:
                             realIssueDate = dateutil.parser.parse(order.issued)
-                            expiry = realIssueDate + datetime.timedelta(days = order.duration)
+                            expiry = realIssueDate + datetime.timedelta(days=order.duration)
                             cursor.execute(
                                 "EXECUTE insert_order (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                                 (
@@ -117,4 +122,3 @@ class PostgresAdapter(Thread):
             (regionID, orders) = self._queue.get()
             self.statsCollector.datapoint("postgres_queue_size", self._queue.qsize())
             processRegion(regionID, orders)
-
