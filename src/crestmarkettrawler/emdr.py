@@ -14,6 +14,7 @@ from requests.sessions import Session
 
 import gzip
 import logging
+import os
 import simplejson as json
 
 logger = logging.getLogger("emdr")
@@ -36,6 +37,12 @@ COL_NAMES = [col[0] for col in COLUMNS]
 COL_FUNCTIONS = [col[1] for col in COLUMNS]
 
 CHUNK_SIZE = 30000
+
+# Without a limit on the queue size, we'll eat up memory storing multiple copies
+# of all market orders in New Eden, since we can poll CREST faster than we can
+# POST to EMDR! Likewise there's no point setting this to larger than the number
+# of regions in the first place (70 or so).
+EMDR_QUEUE_SIZE = int(os.getenv("EMDR_QUEUE_SIZE", "20"))
 
 
 def rangeAdapter(rangeStr):
@@ -86,13 +93,23 @@ def splitOrdersPerType(orders):
 
 
 def chunkOrders(orders):
-    return [orders[x:x + CHUNK_SIZE] for x in xrange(0, len(orders), CHUNK_SIZE)]
+    chunks = []
+    perType = splitOrdersPerType(orders)
+    currentChunk = []
+    while perType:
+        typeid, typeOrders = perType.popitem()
+        if len(currentChunk) + len(typeOrders) > CHUNK_SIZE:
+            chunks.append(currentChunk)
+            currentChunk = []
+        logger.debug("Adding {} orders for type {} to chunk #{}".format(len(typeOrders), typeid, len(chunks)))
+        currentChunk += typeOrders
+    return chunks
 
 
 class EMDRUploader(Thread):
     def __init__(self, statsCollector):
         Thread.__init__(self)
-        self._queue = Queue()
+        self._queue = Queue(EMDR_QUEUE_SIZE)
         self.setDaemon(True)
         self._session = Session()
         self._session.headers.update({
@@ -106,14 +123,12 @@ class EMDRUploader(Thread):
         self.statsCollector.tally("emdr_send_queued")
         queueSize = self._queue.qsize()
         self.statsCollector.datapoint("emdr_queue_size", queueSize)
-        if queueSize > 100:
-            logger.error("EMDR submit queue is about {0} items long!".format(queueSize))
-        elif queueSize > 10:
+        if queueSize > EMDR_QUEUE_SIZE / 2:
             logger.warn("EMDR submit queue is about {0} items long!".format(queueSize))
 
     def run(self):
         def submit(generationTime, regionID, orders):
-            chunks = self.chunkOrders(orders)
+            chunks = chunkOrders(orders)
             for idx, orderChunk in enumerate(chunks):
                 with TemporaryFile() as gzfile:
                     json.dump(
