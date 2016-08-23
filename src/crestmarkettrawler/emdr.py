@@ -85,6 +85,10 @@ def splitOrdersPerType(orders):
     return perType
 
 
+def chunkOrders(orders):
+    return [orders[x:x + CHUNK_SIZE] for x in xrange(0, len(orders), CHUNK_SIZE)]
+
+
 class EMDRUploader(Thread):
     def __init__(self, statsCollector):
         Thread.__init__(self)
@@ -109,7 +113,7 @@ class EMDRUploader(Thread):
 
     def run(self):
         def submit(generationTime, regionID, orders):
-            chunks = [orders[x:x + CHUNK_SIZE] for x in xrange(0, len(orders), CHUNK_SIZE)]
+            chunks = self.chunkOrders(orders)
             for idx, orderChunk in enumerate(chunks):
                 with TemporaryFile() as gzfile:
                     json.dump(
