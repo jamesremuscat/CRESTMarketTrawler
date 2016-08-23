@@ -11,6 +11,7 @@ from stats import StatsCollector, StatsWriter
 from _version import __version__ as VERSION
 
 import logging
+import os
 import pycrest
 import random
 import time
@@ -105,9 +106,10 @@ def main():
     u = EMDRUploader(s)
     t.addListener(u)
     u.start()
-    p = PostgresAdapter(s)
-    t.addListener(p)
-    p.start()
+    if "POSTGRES_USERNAME" in os.environ:
+        p = PostgresAdapter(s)
+        t.addListener(p)
+        p.start()
     t.trawlMarket()
 
 
