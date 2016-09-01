@@ -38,6 +38,18 @@ def cleanEveCache(eve):
         eve.cache._dict.pop(key)
 
 
+def getCachedMarketCall(eve, regionID):
+    keys = [k for k in eve.cache._dict.keys() if 'market' in k[0] and str(regionID) in k[0]]
+    if len(keys) >= 1:
+        return eve.cache._dict[keys[0]]
+    else:
+        return {'expires': 0}
+
+
+def getCacheExpiry(cachedCall):
+    return cachedCall['expires']
+
+
 class Trawler(object):
     def __init__(self, statsCollector):
         self._listeners = []
@@ -71,9 +83,11 @@ class Trawler(object):
 
         def processRegion(region):
             logger.info("Trawling for region {0}".format(region.name))
+            cacheTime = 0  # if we fail, try again straight away
             try:
                 orders = getAllItems(region.marketOrdersAll())
                 processOrders(region, orders)
+                cacheTime = getCacheExpiry(getCachedMarketCall(self.eve, region.id))
 
                 cleanEveCache(self.eve)
                 self.limitPollRate()
@@ -81,8 +95,8 @@ class Trawler(object):
             except Exception as e:
                 self.statsCollector.tally("trawler_exceptions")
                 logger.exception(e)
+            self._regionsQueue.put((cacheTime, region))
             self.statsCollector.tally("trawler_region_processed")
-            self._regionsQueue.put((time.time(), region))
 
         def processOrders(region, orders):
             logger.info(u"Retrieved {0} orders for region {1} ({2})".format(len(orders), region.id, region.name))
@@ -90,7 +104,11 @@ class Trawler(object):
             self._notifyListeners(region.id, orders)
 
         while True:
-            (_, region) = self._regionsQueue.get()
+            (cacheTime, region) = self._regionsQueue.get()
+            if cacheTime > time.time():
+                logger.info("Region {} cached until {}, now {} - pausing".format(region.name, cacheTime, time.time()))
+            while cacheTime > time.time():
+                time.sleep(cacheTime - time.time())
             processRegion(region)
 
 
