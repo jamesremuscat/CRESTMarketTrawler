@@ -121,9 +121,10 @@ def main():
     s.start()
     sw.start()
     t = Trawler(s)
-    u = EMDRUploader(s)
-    t.addListener(u)
-    u.start()
+    if not getenv("DISABLE_EMDR", False):
+	u = EMDRUploader(s)
+	t.addListener(u)
+	u.start()
     if "POSTGRES_USERNAME" in os.environ:
         p = PostgresAdapter(s)
         t.addListener(p)

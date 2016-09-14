@@ -59,3 +59,7 @@ CREATE TABLE live_orders (
     expiry timestamp without time zone
 );
 ```
+
+## Disabling EMDR upload
+
+To disable uploading to EMDR, set the `DISABLE_EMDR` environment variable to `1`.
