@@ -5,3 +5,5 @@ RUN pip install psycopg2 simplejson
 EXPOSE 80
 
 COPY ./app /app
+
+COPY ./cmt.conf /etc/nginx/conf.d/
