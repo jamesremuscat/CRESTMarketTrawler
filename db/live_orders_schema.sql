@@ -106,3 +106,27 @@ CREATE AGGREGATE median(NUMERIC) (
   FINALFUNC=_final_median,
   INITCOND='{}'
 );
+
+
+CREATE VIEW live_prices AS 
+select m.typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, (now() at time zone 'UTC') as time  from (
+select typeid, median(price) as sell_price,
+sum(volRemaining) as sell_volume,
+max(price) as sell_max,
+min(price) as sell_min,
+stddev(price) as sell_sd
+from live_orders where isbid=false
+group by typeid
+) s join 
+(
+select typeid, median(price) as buy_price,
+sum(volRemaining) as buy_volume,
+max(price) as buy_max,
+min(price) as buy_min,
+stddev(price) as buy_sd
+from live_orders where isbid=true
+group by typeid
+) b on s.typeid=b.typeid join
+(
+select typeid, median(price) as median_price from live_orders group by typeid
+) m on m.typeid=s.typeid;

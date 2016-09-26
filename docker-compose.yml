@@ -2,7 +2,14 @@ db:
   build: ./db
   env_file: docker.env
 trawler:
-  image: cmt:latest
+  build: .
   env_file: docker.env
   links:
     - db
+web:
+  build: ./web
+  env_file: docker.env
+  links:
+    - db
+  ports:
+    - "80:80"
