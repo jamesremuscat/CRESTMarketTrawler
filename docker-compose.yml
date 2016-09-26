@@ -1,0 +1,8 @@
+db:
+  build: ./db
+  env_file: docker.env
+trawler:
+  image: cmt:latest
+  env_file: docker.env
+  links:
+    - db
