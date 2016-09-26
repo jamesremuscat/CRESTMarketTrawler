@@ -1,6 +1,5 @@
 from datetime import datetime
 from flask import Flask, json
-from psycopg2.extras import RealDictCursor
 
 import os
 import psycopg2
@@ -19,8 +18,8 @@ conn = psycopg2.connect(
 
 @app.route("/prices")
 def prices():
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("SELECT * FROM live_prices")
+    with conn.cursor() as cur:
+        cur.execute("SELECT typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, time FROM live_prices")
         return json.jsonify(cur.fetchall())
 
 if __name__ == "__main__":
