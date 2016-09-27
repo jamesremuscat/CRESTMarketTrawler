@@ -7,6 +7,8 @@ from threading import Lock, Thread
 from time import sleep
 
 import logging
+import os
+import psycopg2
 import simplejson
 
 
@@ -86,3 +88,26 @@ class StatsWriter(Thread):
             self.logger.info("Statistics update: {0}".format(summary))
             with open(self.fileName, 'w') as f:
                 simplejson.dump(summary, f)
+
+
+class StatsDBWriter(Thread):
+    def __init__(self, statsCollector):
+        super(StatsDBWriter, self).__init__()
+        self.statsCollector = statsCollector
+        self.setDaemon(True)
+
+    def run(self):
+        conn = psycopg2.connect(
+            user=os.environ.get("POSTGRES_USERNAME"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
+            database=os.environ.get("POSTGRES_DB"),
+            host=os.environ.get("POSTGRES_HOST", "localhost")
+        )
+
+        while True:
+            sleep(60)
+            summary = self.statsCollector.getSummary()
+            with conn.cursor() as cursor:
+                cursor.execute("TRUNCATE TABLE trawler_stats")
+                cursor.execute("INSERT INTO trawler_stats(stats, time) VALUES (%s, %s)", (simplejson.dumps(summary), datetime.utcnow()))
+                conn.commit()

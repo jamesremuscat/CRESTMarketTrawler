@@ -130,3 +130,7 @@ group by typeid
 (
 select typeid, median(price) as median_price from live_orders group by typeid
 ) m on m.typeid=s.typeid;
+
+CREATE TABLE trawler_stats ( stats jsonb, time timestamp without time zone);
+ALTER TABLE ONLY trawler_stats ADD CONSTRAINT trawler_stats_priKey PRIMARY KEY (time);
+

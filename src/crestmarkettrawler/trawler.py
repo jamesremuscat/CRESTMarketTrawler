@@ -7,7 +7,7 @@ from emdr import EMDRUploader
 from os import getenv
 from postgres import PostgresAdapter
 from Queue import PriorityQueue
-from stats import StatsCollector, StatsWriter
+from stats import StatsCollector, StatsWriter, StatsDBWriter
 from _version import __version__ as VERSION
 
 import logging
@@ -122,13 +122,16 @@ def main():
     sw.start()
     t = Trawler(s)
     if not getenv("DISABLE_EMDR", False):
-	u = EMDRUploader(s)
-	t.addListener(u)
-	u.start()
+        u = EMDRUploader(s)
+        t.addListener(u)
+        u.start()
     if "POSTGRES_USERNAME" in os.environ:
         p = PostgresAdapter(s)
         t.addListener(p)
         p.start()
+        sdw = StatsDBWriter(s)
+        sdw.start()
+
     t.trawlMarket()
 
 
