@@ -6,4 +6,5 @@ EXPOSE 80
 
 COPY ./app /app
 
-COPY ./cmt.conf /etc/nginx/conf.d/
+# Overwrite base image's default conf
+COPY ./nginx.conf /etc/nginx/conf.d/
