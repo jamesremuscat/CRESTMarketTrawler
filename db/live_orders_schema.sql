@@ -115,7 +115,7 @@ sum(volRemaining) as sell_volume,
 max(price) as sell_max,
 min(price) as sell_min,
 stddev(price) as sell_sd
-from live_orders where isbid=false
+from live_orders where isbid=false and expiry >= now()
 group by typeid
 ) s join 
 (
@@ -124,11 +124,11 @@ sum(volRemaining) as buy_volume,
 max(price) as buy_max,
 min(price) as buy_min,
 stddev(price) as buy_sd
-from live_orders where isbid=true
+from live_orders where isbid=true and expiry >= now()
 group by typeid
 ) b on s.typeid=b.typeid join
 (
-select typeid, median(price) as median_price from live_orders group by typeid
+select typeid, median(price) as median_price from live_orders where expiry >= now() group by typeid
 ) m on m.typeid=s.typeid;
 
 CREATE TABLE trawler_stats ( stats jsonb, time timestamp without time zone);
