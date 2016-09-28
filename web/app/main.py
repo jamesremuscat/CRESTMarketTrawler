@@ -17,9 +17,21 @@ def prices():
         host=os.environ.get("POSTGRES_HOST", "localhost")
     ) as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM live_orders WHERE expiry < NOW()")
             cur.execute("SELECT typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, time FROM live_prices")
             return json.jsonify(cur.fetchall())
+
+
+@app.route("/clean")
+def clean():
+    with psycopg2.connect(
+        user=os.environ.get("POSTGRES_USERNAME"),
+        password=os.environ.get("POSTGRES_PASSWORD"),
+        database=os.environ.get("POSTGRES_DB"),
+        host=os.environ.get("POSTGRES_HOST", "localhost")
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM live_orders WHERE expiry < NOW()")
+            return json.jsonify({"deleted": cur.rowcount})
 
 
 @app.route("/stats")
