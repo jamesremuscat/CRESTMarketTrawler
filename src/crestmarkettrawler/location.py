@@ -12,19 +12,19 @@ from _version import USER_AGENT_STRING
 
 logger = logging.getLogger("location")
 
+_STA_STATIONS_URL = "https://www.fuzzwork.co.uk/dump/latest/staStations.csv.bz2"
+_ESI_STRUCTURES_URL = "https://esi.tech.ccp.is/v1/universe/structures/{structure_id}"
+_STATION_ID_MIN = 60000000
+
 
 class LocationService(object):
-    _STA_STATIONS_URL = "https://www.fuzzwork.co.uk/dump/latest/staStations.csv.bz2"
-    _ESI_STRUCTURES_URL = "https://esi.tech.ccp.is/v1/universe/structures/{structure_id}"
-    _STATION_ID_MIN = 60000000
-    _ESI_TOKEN = os.environ.get("ESI_TOKEN", None)
 
     def __init__(self):
         self._mapping = {}
         logging.info("Priming LocationService cache from Fuzzwork Enterprises...")
 
         fuzz = urllib2.Request(
-            self._STA_STATIONS_URL,
+            _STA_STATIONS_URL,
             headers={
                 'User-Agent': USER_AGENT_STRING
             }
@@ -35,7 +35,7 @@ class LocationService(object):
         md = csv.DictReader(bf)
         for row in md:
             itemID = int(row['stationID'])
-            if itemID >= self._STATION_ID_MIN:
+            if itemID >= _STATION_ID_MIN:
                 self._mapping[itemID] = row
         logging.info("{} locations cached".format(len(self._mapping)))
 
@@ -50,7 +50,7 @@ class LocationService(object):
     def get(self, itemID):
         if itemID not in self._mapping and self._token_store:
             esi = requests.get(
-                self._ESI_STRUCTURES_URL.format(structure_id=itemID),
+                _ESI_STRUCTURES_URL.format(structure_id=itemID),
                 headers={
                     'Authorization': "Bearer {}".format(self._token_store.getToken()),
                     'User-Agent': USER_AGENT_STRING
