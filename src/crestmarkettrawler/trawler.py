@@ -7,7 +7,7 @@ from emdr import EMDRUploader
 from os import getenv
 from postgres import PostgresAdapter
 from Queue import PriorityQueue
-from stats import StatsCollector, StatsWriter
+from stats import StatsCollector, StatsWriter, StatsDBWriter
 from _version import USER_AGENT_STRING
 
 import logging
@@ -129,6 +129,9 @@ def main():
         p = PostgresAdapter(s)
         t.addListener(p)
         p.start()
+        sdw = StatsDBWriter(s)
+        sdw.start()
+
     t.trawlMarket()
 
 
