@@ -8,7 +8,7 @@ from os import getenv
 from postgres import PostgresAdapter
 from Queue import PriorityQueue
 from stats import StatsCollector, StatsWriter
-from _version import __version__ as VERSION
+from _version import USER_AGENT_STRING
 
 import logging
 import os
@@ -54,7 +54,7 @@ class Trawler(object):
     def __init__(self, statsCollector):
         self._listeners = []
         self._regionsQueue = PriorityQueue()
-        self.eve = pycrest.EVE(user_agent="CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION))
+        self.eve = pycrest.EVE(user_agent=USER_AGENT_STRING)
         self.eve._endpoint = "https://crest-tq.eveonline.com/"
 
         self.statsCollector = statsCollector

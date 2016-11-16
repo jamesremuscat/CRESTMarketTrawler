@@ -4,7 +4,7 @@ from gevent import monkey
 
 gevent.monkey.patch_all()  # nopep8
 
-from _version import __version__ as VERSION
+from _version import USER_AGENT_STRING
 from contrib import timestampString
 from gevent.pool import Pool
 from Queue import Queue
@@ -114,7 +114,7 @@ class EMDRUploader(Thread):
         self.setDaemon(True)
         self._session = Session()
         self._session.headers.update({
-            "User-Agent": "CRESTMarketTrawler/{0} (muscaat@eve-markets.net)".format(VERSION)
+            "User-Agent": USER_AGENT_STRING
         })
         self._pool = Pool(size=10)
         self.statsCollector = statsCollector
