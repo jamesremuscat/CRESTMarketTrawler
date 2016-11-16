@@ -1,15 +1,18 @@
 db:
   build: ./db
   env_file: docker.env
+  restart: on-failure
 trawler:
   build: .
   env_file: docker.env
   links:
     - db
+  restart: on-failure
 web:
   build: ./web
   env_file: docker.env
   links:
     - db
+  restart: on-failure
   ports:
     - "80:80"
