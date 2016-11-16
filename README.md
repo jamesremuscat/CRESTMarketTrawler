@@ -34,6 +34,19 @@ You can further restrict the trawl speed by setting the `REQUESTS_PER_SECOND` en
 variable. This will limit the maximum number of requests to CREST per second; setting it
 to smaller fractional values will introduce larger pauses between requests.
 
+## Location service
+
+CREST (and ESI) do not include `solarSystemID` in the data feed, but many EMDR
+clients rely on its presence. CRESTMarketTrawler includes a location service
+that uses the Static Data Export to provide orders with `solarSystemID`s. If
+the `ESI_CLIENT_ID`, `ESI_SECRET` and `ESI_REFRESH_TOKEN` environment variables
+are set, it will also call ESI to obtain `solarSystemID`s for player structures
+(e.g. citadels).
+
+To obtain a client ID and secret, register an application at
+https://developers.eveonline.com. Authenticate a character granting the
+`esi-universe.read_structures.v1` scope to obtain a refresh token.
+
 ## Postgres
 
 To enable writing orders to a Postgres database, you should set the `POSTGRES_USERNAME`,
