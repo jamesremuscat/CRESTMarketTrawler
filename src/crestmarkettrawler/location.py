@@ -14,7 +14,7 @@ logger = logging.getLogger("location")
 
 
 class LocationService(object):
-    _MAP_DENORMALIZE_URL = "https://www.fuzzwork.co.uk/dump/latest/mapDenormalize.csv.bz2"
+    _STA_STATIONS_URL = "https://www.fuzzwork.co.uk/dump/latest/staStations.csv.bz2"
     _ESI_STRUCTURES_URL = "https://esi.tech.ccp.is/v1/universe/structures/{structure_id}"
     _STATION_ID_MIN = 60000000
     _ESI_TOKEN = os.environ.get("ESI_TOKEN", None)
@@ -24,7 +24,7 @@ class LocationService(object):
         logging.info("Priming LocationService cache from Fuzzwork Enterprises...")
 
         fuzz = urllib2.Request(
-            self._MAP_DENORMALIZE_URL,
+            self._STA_STATIONS_URL,
             headers={
                 'User-Agent': USER_AGENT_STRING
             }
@@ -34,12 +34,13 @@ class LocationService(object):
         bf = bz2file.BZ2File(mapDenormalize)
         md = csv.DictReader(bf)
         for row in md:
-            itemID = int(row['itemID'])
+            itemID = int(row['stationID'])
             if itemID >= self._STATION_ID_MIN:
                 self._mapping[itemID] = row
         logging.info("{} locations cached".format(len(self._mapping)))
 
         if "ESI_CLIENT_ID" in os.environ:
+            logger.debug("Creating ESI TokenStore")
             self._token_store = TokenStore(
                 os.environ.get("ESI_CLIENT_ID", None),
                 os.environ.get("ESI_SECRET", None),
@@ -55,8 +56,9 @@ class LocationService(object):
                     'User-Agent': USER_AGENT_STRING
                 }
             )
+            logger.debug("ESI returned status code {}".format(esi.status_code))
             if esi.status_code == requests.codes.ok:
-                logging.info("Retrieved data for structure {} via ESI".format(itemID))
+                logger.info("Retrieved data for structure {} via ESI".format(itemID))
                 data = esi.json()
                 self._mapping[itemID] = {'solarSystemID': data['solar_system_id']}
                 self._mapping[itemID].update(data)
