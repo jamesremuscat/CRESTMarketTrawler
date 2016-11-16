@@ -63,3 +63,13 @@ CREATE TABLE live_orders (
 ## Disabling EMDR upload
 
 To disable uploading to EMDR, set the `DISABLE_EMDR` environment variable to `1`.
+
+## Docker
+
+Dockerfiles are provided for both the trawler and two ancillary services: a database and web API frontend.
+
+Settings for the database are stored in the `docker.env` file.
+
+Running `docker-compose up` in the project root directory might not work since
+the database takes some time to spool up; so do `docker-compose up -d db` and
+wait a moment before starting `web` and `trawler`.
