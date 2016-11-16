@@ -37,11 +37,6 @@ class LocationService(object):
         logging.info("{} locations cached".format(len(self._mapping)))
 
     def get(self, itemID):
-        if itemID in self._mapping:
-            return self._mapping[itemID]
-        return None
-
-    def solarSystemID(self, itemID):
         if itemID not in self._mapping:
             esi = requests.get(
                 self._ESI_STRUCTURES_URL.format(structure_id=itemID),
@@ -55,6 +50,12 @@ class LocationService(object):
                 data = esi.json()
                 self._mapping[itemID] = {'solarSystemID': data['solar_system_id']}
                 self._mapping[itemID].update(data)
+            else:
+                return None
+
+        return self._mapping[itemID]
+
+    def solarSystemID(self, itemID):
         maybe = self.get(itemID)
         if maybe:
             return int(maybe['solarSystemID'])
