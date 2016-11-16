@@ -4,7 +4,7 @@ from gevent import monkey
 
 gevent.monkey.patch_all()  # nopep8
 
-from _version import USER_AGENT_STRING
+from _version import __version__ as VERSION, USER_AGENT_STRING
 from contrib import timestampString
 from gevent.pool import Pool
 from Queue import Queue
