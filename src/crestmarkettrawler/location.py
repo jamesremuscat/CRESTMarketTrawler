@@ -22,7 +22,7 @@ class LocationService(object):
     def __init__(self):
         self._mapping = {}
         self._blacklist = []
-        logging.info("Priming LocationService cache from Fuzzwork Enterprises...")
+        logger.info("Priming LocationService cache from Fuzzwork Enterprises...")
 
         fuzz = urllib2.Request(
             _STA_STATIONS_URL,
@@ -38,7 +38,7 @@ class LocationService(object):
             itemID = int(row['stationID'])
             if itemID >= _STATION_ID_MIN:
                 self._mapping[itemID] = row
-        logging.info("{} locations cached".format(len(self._mapping)))
+        logger.info("{} locations cached".format(len(self._mapping)))
 
         if "ESI_CLIENT_ID" in os.environ:
             logger.debug("Creating ESI TokenStore")
