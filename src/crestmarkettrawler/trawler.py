@@ -1,6 +1,5 @@
-import gevent
 from gevent import monkey
-gevent.monkey.patch_all()  # nopep8
+monkey.patch_all()  # nopep8
 
 from contrib import getAllItems, RateLimited
 from emdr import EMDRUploader

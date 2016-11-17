@@ -1,13 +1,11 @@
 # This should already have been done in trawler but just in case!
-import gevent
 from gevent import monkey
-from crestmarkettrawler.location import LocationService
-
-gevent.monkey.patch_all()  # nopep8
+monkey.patch_all()  # nopep8
 
 from _version import __version__ as VERSION, USER_AGENT_STRING
 from contrib import timestampString
 from gevent.pool import Pool
+from location import LocationService
 from Queue import Queue
 from tempfile import TemporaryFile
 from threading import Thread
