@@ -21,6 +21,7 @@ class LocationService(object):
 
     def __init__(self):
         self._mapping = {}
+        self._blacklist = []
         logging.info("Priming LocationService cache from Fuzzwork Enterprises...")
 
         fuzz = urllib2.Request(
@@ -48,7 +49,7 @@ class LocationService(object):
             )
 
     def get(self, itemID):
-        if itemID not in self._mapping and self._token_store:
+        if itemID not in self._mapping and self._token_store and itemID not in self._blacklist:
             esi = requests.get(
                 _ESI_STRUCTURES_URL.format(structure_id=itemID),
                 headers={
@@ -63,6 +64,12 @@ class LocationService(object):
                 self._mapping[itemID] = {'solarSystemID': data['solar_system_id']}
                 self._mapping[itemID].update(data)
             else:
+                # If we get an error trying to retrieve structure location,
+                # make a note of it and don't try again.
+                # This means we'll occasionally miss the location of structures
+                # that have become more public, but speeds things up on
+                # subsequent runs as we won't keep trying repeatedly.
+                self._blacklist.append(itemID)
                 return None
 
         return self._mapping.get(itemID)
