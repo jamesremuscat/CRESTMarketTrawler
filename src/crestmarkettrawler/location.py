@@ -5,6 +5,7 @@ import logging
 import requests
 import os
 import urllib2
+import xmltodict
 
 from datetime import datetime, timedelta
 
@@ -14,6 +15,7 @@ logger = logging.getLogger("location")
 
 _STA_STATIONS_URL = "https://www.fuzzwork.co.uk/dump/latest/staStations.csv.bz2"
 _ESI_STRUCTURES_URL = "https://esi.tech.ccp.is/v1/universe/structures/{structure_id}"
+_CONQUERABLE_STATIONS_URL = "https://api.eveonline.com/eve/ConquerableStationList.xml.aspx"
 _STATION_ID_MIN = 60000000
 
 
@@ -38,7 +40,27 @@ class LocationService(object):
             itemID = int(row['stationID'])
             if itemID >= _STATION_ID_MIN:
                 self._mapping[itemID] = row
+        mapDenormalize.close()
         logger.info("{} locations cached".format(len(self._mapping)))
+
+        logger.info("Incorporating conquerable stations list...")
+        conq = urllib2.Request(
+            _CONQUERABLE_STATIONS_URL,
+            headers={
+                'User-Agent': USER_AGENT_STRING
+            }
+        )
+        csl = urllib2.urlopen(conq)
+
+        conquerable_stations = xmltodict.parse(csl.read())
+
+        for station in conquerable_stations["eveapi"]["result"]["rowset"]["row"]:
+            self._mapping[int(station["@stationID"])] = {
+                "solarSystemID": int(station["@solarSystemID"])
+            }
+
+        csl.close()
+        logger.info("Now {} locations cached".format(len(self._mapping)))
 
         if "ESI_CLIENT_ID" in os.environ:
             logger.debug("Creating ESI TokenStore")

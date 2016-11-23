@@ -27,7 +27,7 @@ setup(
       """,
     setup_requires=[],
     tests_require=[],
-    install_requires=["bz2file", "gevent", "psycopg2", "psycogreen", "pycrest", "python-dateutil", "requests", "simplejson"],
+    install_requires=["bz2file", "gevent", "psycopg2", "psycogreen", "pycrest", "python-dateutil", "requests", "simplejson", "xml2dict"],
     entry_points={
         'console_scripts': [
             'CRESTMarketTrawler = crestmarkettrawler.trawler:main',
