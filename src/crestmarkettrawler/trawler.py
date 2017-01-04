@@ -7,7 +7,7 @@ from os import getenv
 from postgres import PostgresAdapter
 from Queue import PriorityQueue
 from stats import StatsCollector, StatsWriter, StatsDBWriter
-from _version import USER_AGENT_STRING
+from _version import USER_AGENT_STRING, __version__ as VERSION
 
 import logging
 import os
@@ -57,6 +57,7 @@ class Trawler(object):
         self.eve._endpoint = "https://crest-tq.eveonline.com/"
 
         self.statsCollector = statsCollector
+        statsCollector.datapoint("trawler_version", VERSION)
 
     def addListener(self, listener):
         self._listeners.append(listener)
