@@ -10,6 +10,7 @@ import xmltodict
 from datetime import datetime, timedelta
 
 from _version import USER_AGENT_STRING
+from threading import Lock
 
 logger = logging.getLogger("location")
 
@@ -72,31 +73,34 @@ class LocationService(object):
         else:
             self._token_store = None
 
-    def get(self, itemID):
-        if itemID not in self._mapping and self._token_store and itemID not in self._blacklist:
-            esi = requests.get(
-                _ESI_STRUCTURES_URL.format(structure_id=itemID),
-                headers={
-                    'Authorization': "Bearer {}".format(self._token_store.getToken()),
-                    'User-Agent': USER_AGENT_STRING
-                }
-            )
-            logger.debug("ESI returned status code {}".format(esi.status_code))
-            if esi.status_code == requests.codes.ok:
-                logger.info("Retrieved data for structure {} via ESI".format(itemID))
-                data = esi.json()
-                self._mapping[itemID] = {'solarSystemID': data['solar_system_id']}
-                self._mapping[itemID].update(data)
-            else:
-                # If we get an error trying to retrieve structure location,
-                # make a note of it and don't try again.
-                # This means we'll occasionally miss the location of structures
-                # that have become more public, but speeds things up on
-                # subsequent runs as we won't keep trying repeatedly.
-                self._blacklist.append(itemID)
-                return None
+        self._lock = Lock()
 
-        return self._mapping.get(itemID)
+    def get(self, itemID):
+        with self._lock:
+            if itemID not in self._mapping and self._token_store and itemID not in self._blacklist:
+                esi = requests.get(
+                    _ESI_STRUCTURES_URL.format(structure_id=itemID),
+                    headers={
+                        'Authorization': "Bearer {}".format(self._token_store.getToken()),
+                        'User-Agent': USER_AGENT_STRING
+                    }
+                )
+                logger.debug("ESI returned status code {}".format(esi.status_code))
+                if esi.status_code == requests.codes.ok:
+                    logger.info("Retrieved data for structure {} via ESI".format(itemID))
+                    data = esi.json()
+                    self._mapping[itemID] = {'solarSystemID': data['solar_system_id']}
+                    self._mapping[itemID].update(data)
+                else:
+                    # If we get an error trying to retrieve structure location,
+                    # make a note of it and don't try again.
+                    # This means we'll occasionally miss the location of structures
+                    # that have become more public, but speeds things up on
+                    # subsequent runs as we won't keep trying repeatedly.
+                    self._blacklist.append(itemID)
+                    return None
+
+            return self._mapping.get(itemID)
 
     def solarSystemID(self, itemID):
         maybe = self.get(itemID)
