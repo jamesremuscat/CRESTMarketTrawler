@@ -131,6 +131,33 @@ group by typeid
 select typeid, median(price) as median_price from live_orders where expiry >= now() group by typeid
 ) m on m.typeid=s.typeid;
 
+CREATE VIEW regional_prices AS
+  SELECT m.regionid, m.typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, (now() at time zone 'UTC') AS time FROM (
+    SELECT regionid, typeid, median(price) AS sell_price,
+    sum(volRemaining) AS sell_volume,
+    max(price) AS sell_max,
+    min(price) AS sell_min,
+    stddev(price) AS sell_sd
+    FROM live_orders WHERE isbid=false WHERE expiry >= now()
+    GROUP BY regionid, typeid
+  ) s
+  JOIN 
+  (
+    SELECT regionid, typeid, median(price) AS buy_price,
+    sum(volRemaining) AS buy_volume,
+    max(price) AS buy_max,
+    min(price) AS buy_min,
+    stddev(price) AS buy_sd
+    FROM live_orders WHERE isbid=true AND expiry >= now()
+    GROUP BY regionid, typeid
+  ) b 
+  ON s.typeid=b.typeid AND s.regionid=b.regionid 
+  JOIN
+  (
+    SELECT regionid, typeid, median(price) AS median_price FROM live_orders WHERE expiry >= now() GROUP BY regionid, typeid
+  ) m 
+  ON m.typeid=s.typeid AND m.regionid=s.regionid;
+
 CREATE TABLE trawler_stats ( stats jsonb, time timestamp without time zone);
 ALTER TABLE ONLY trawler_stats ADD CONSTRAINT trawler_stats_priKey PRIMARY KEY (time);
 
