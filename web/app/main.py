@@ -21,6 +21,35 @@ def prices():
             return json.jsonify(cur.fetchall())
 
 
+@app.route("/region/<int:regionID>")
+def regional_prices(regionID):
+    with psycopg2.connect(
+        user=os.environ.get("POSTGRES_USERNAME"),
+        password=os.environ.get("POSTGRES_PASSWORD"),
+        database=os.environ.get("POSTGRES_DB"),
+        host=os.environ.get("POSTGRES_HOST", "localhost")
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, time FROM regional_prices WHERE regionid=%s",
+                (regionID,)
+            )
+            return json.jsonify(cur.fetchall())
+
+@app.route("/regions")
+def all_regional_prices():
+    with psycopg2.connect(
+        user=os.environ.get("POSTGRES_USERNAME"),
+        password=os.environ.get("POSTGRES_PASSWORD"),
+        database=os.environ.get("POSTGRES_DB"),
+        host=os.environ.get("POSTGRES_HOST", "localhost")
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT regionid, typeid, buy_price, buy_volume, buy_min, buy_max, buy_sd, sell_price, sell_volume, sell_min, sell_max, sell_sd, median_price, time FROM regional_prices"
+            )
+            return json.jsonify(cur.fetchall())
+
 @app.route("/clean")
 def clean():
     with psycopg2.connect(
