@@ -69,6 +69,8 @@ class LocationService(object):
                 os.environ.get("ESI_SECRET", None),
                 os.environ.get("ESI_REFRESH_TOKEN", None)
             )
+        else:
+            self._token_store = None
 
     def get(self, itemID):
         if itemID not in self._mapping and self._token_store and itemID not in self._blacklist:
