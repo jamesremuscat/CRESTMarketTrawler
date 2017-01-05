@@ -97,7 +97,7 @@ class PostgresAdapter(Thread):
                                     order.issued,
                                     order.duration,
                                     order.stationID,
-                                    None,
+                                    order.solarSystemID,
                                     expiry
                                 )
                             )

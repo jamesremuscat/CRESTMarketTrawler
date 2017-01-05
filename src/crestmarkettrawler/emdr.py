@@ -5,7 +5,6 @@ monkey.patch_all()  # nopep8
 from _version import __version__ as VERSION, USER_AGENT_STRING
 from contrib import timestampString
 from gevent.pool import Pool
-from location import LocationService
 from Queue import Queue
 from tempfile import TemporaryFile
 from threading import Thread
@@ -19,17 +18,17 @@ import simplejson as json
 logger = logging.getLogger("emdr")
 
 COLUMNS = [
-    ("price", lambda o, _: o.price),
-    ("volRemaining", lambda o, _: o.volume),
-    ("range", lambda o, _: rangeAdapter(o.range)),
-    ("orderID", lambda o, _: o.id),
-    ("volEntered", lambda o, _: o.volumeEntered),
-    ("minVolume", lambda o, _: o.minVolume),
-    ("bid", lambda o, _: o.buy),
-    ("issueDate", lambda o, _: o.issued + "+00:00"),
-    ("duration", lambda o, _: o.duration),
-    ("stationID", lambda o, _: o.stationID),
-    ("solarSystemID", lambda o, l: l.solarSystemID(o.stationID) if l else None)
+    ("price", lambda o: o.price),
+    ("volRemaining", lambda o: o.volume),
+    ("range", lambda o: rangeAdapter(o.range)),
+    ("orderID", lambda o: o.id),
+    ("volEntered", lambda o: o.volumeEntered),
+    ("minVolume", lambda o: o.minVolume),
+    ("bid", lambda o: o.buy),
+    ("issueDate", lambda o: o.issued + "+00:00"),
+    ("duration", lambda o: o.duration),
+    ("stationID", lambda o: o.stationID),
+    ("solarSystemID", lambda o: o.solarSystemID)
 ]
 
 COL_NAMES = [col[0] for col in COLUMNS]
@@ -54,14 +53,14 @@ def rangeAdapter(rangeStr):
     return int(rangeStr)
 
 
-def EMDROrderAdapter(order, locationService):
-    return [adapt(order, locationService) for adapt in COL_FUNCTIONS]
+def EMDROrderAdapter(order):
+    return [adapt(order) for adapt in COL_FUNCTIONS]
 
 
-def EMDROrdersAdapter(generationTime, regionID, orders, locationService=None):
+def EMDROrdersAdapter(generationTime, regionID, orders):
     rowsets = []
     for (typeID, typeOrders) in splitOrdersPerType(orders).iteritems():
-        rows = [EMDROrderAdapter(order, locationService) for order in typeOrders]
+        rows = [EMDROrderAdapter(order) for order in typeOrders]
         rowsets.append({
             "generatedAt": generationTime,
             "regionID": regionID,
@@ -117,7 +116,6 @@ class EMDRUploader(Thread):
         })
         self._pool = Pool(size=10)
         self.statsCollector = statsCollector
-        self._locationService = LocationService()
 
     def notify(self, regionID, orders):
         self._queue.put((timestampString(), regionID, orders))
@@ -133,7 +131,7 @@ class EMDRUploader(Thread):
             for idx, orderChunk in enumerate(chunks):
                 with TemporaryFile() as gzfile:
                     json.dump(
-                        EMDROrdersAdapter(generationTime, regionID, orderChunk, locationService=self._locationService),
+                        EMDROrdersAdapter(generationTime, regionID, orderChunk),
                         gzip.GzipFile(fileobj=gzfile, mode="wb")
                     )
                     headers = {'Content-Length': str(gzfile.tell()),

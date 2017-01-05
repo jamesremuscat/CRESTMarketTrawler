@@ -1,4 +1,5 @@
 from gevent import monkey
+from crestmarkettrawler.location import LocationService
 monkey.patch_all()  # nopep8
 
 from contrib import getAllItems, RateLimited
@@ -58,6 +59,7 @@ class Trawler(object):
 
         self.statsCollector = statsCollector
         statsCollector.datapoint("trawler_version", VERSION)
+        self._locationService = LocationService()
 
     def addListener(self, listener):
         self._listeners.append(listener)
@@ -101,6 +103,10 @@ class Trawler(object):
         def processOrders(region, orders):
             logger.info(u"Retrieved {0} orders for region {1} ({2})".format(len(orders), region.id, region.name))
             self.statsCollector.tally("trawler_orders_received", len(orders))
+            logger.debug("Annotating orders with solarSystemID")
+            for order in orders:
+                if not hasattr(order, "solarSystemID") and order.stationID:
+                    order.solarSystemID = self._locationService.solarSystemID(order.stationID)
             self._notifyListeners(region.id, orders)
 
         while True:
