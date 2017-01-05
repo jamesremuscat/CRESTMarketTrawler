@@ -1,7 +1,6 @@
 # This should already have been done in trawler but just in case!
-import gevent
 from gevent import monkey
-gevent.monkey.patch_all()  # nopep8
+monkey.patch_all()  # nopep8
 
 from Queue import Queue
 from threading import Thread
