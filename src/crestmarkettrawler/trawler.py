@@ -85,7 +85,7 @@ class Trawler(object):
 
         def processRegion(region):
             logger.info("Trawling for region {0}".format(region.name))
-            cacheTime = 0  # if we fail, try again straight away
+            cacheTime = 0
             try:
                 orders = getAllItems(region.marketOrdersAll())
                 processOrders(region, orders)
@@ -97,6 +97,7 @@ class Trawler(object):
             except Exception as e:
                 self.statsCollector.tally("trawler_exceptions")
                 logger.exception(e)
+                cacheTime = time.time() + (random.randint(1, 60) * 60)  # Random delay before retrying
             self._regionsQueue.put((cacheTime, region))
             self.statsCollector.tally("trawler_region_processed")
 
