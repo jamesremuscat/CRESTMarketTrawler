@@ -1,4 +1,4 @@
-# Monkey patch requets with ujson for faster parsing
+# Monkey patch requests with ujson for faster parsing
 import requests
 import ujson
 
