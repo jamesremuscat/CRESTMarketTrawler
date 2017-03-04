@@ -13,7 +13,7 @@ from requests.sessions import Session
 import gzip
 import logging
 import os
-import simplejson as json
+import ujson
 
 logger = logging.getLogger("emdr")
 
@@ -133,7 +133,7 @@ class EMDRUploader(Thread):
             chunks = chunkOrders(orders)
             for idx, orderChunk in enumerate(chunks):
                 with TemporaryFile() as gzfile:
-                    json.dump(
+                    ujson.dump(
                         EMDROrdersAdapter(generationTime, regionID, orderChunk),
                         gzip.GzipFile(fileobj=gzfile, mode="wb")
                     )
