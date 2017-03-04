@@ -59,8 +59,11 @@ def EMDROrderAdapter(order):
 
 def EMDROrdersAdapter(generationTime, regionID, orders):
     rowsets = []
+    idIndex = COL_NAMES.index("orderID")
     for (typeID, typeOrders) in splitOrdersPerType(orders).iteritems():
         rows = [EMDROrderAdapter(order) for order in typeOrders]
+        # Sort by orderID to facilitate caching by consumers
+        rows.sort(key=lambda order: order[id_index])
         rowsets.append({
             "generatedAt": generationTime,
             "regionID": regionID,
