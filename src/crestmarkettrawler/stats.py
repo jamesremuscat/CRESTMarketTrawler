@@ -9,7 +9,7 @@ from time import sleep
 import logging
 import os
 import psycopg2
-import simplejson
+import ujson
 
 
 class StatsCollector(Thread):
@@ -87,7 +87,7 @@ class StatsWriter(Thread):
             summary = self.statsCollector.getSummary()
             self.logger.info("Statistics update: {0}".format(summary))
             with open(self.fileName, 'w') as f:
-                simplejson.dump(summary, f)
+                ujson.dump(summary, f)
 
 
 class StatsDBWriter(Thread):
