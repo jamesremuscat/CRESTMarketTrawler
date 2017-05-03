@@ -109,5 +109,5 @@ class StatsDBWriter(Thread):
             summary = self.statsCollector.getSummary()
             with conn.cursor() as cursor:
                 cursor.execute("TRUNCATE TABLE trawler_stats")
-                cursor.execute("INSERT INTO trawler_stats(stats, time) VALUES (%s, %s)", (simplejson.dumps(summary), datetime.utcnow()))
+                cursor.execute("INSERT INTO trawler_stats(stats, time) VALUES (%s, %s)", (ujson.dumps(summary), datetime.utcnow()))
                 conn.commit()
